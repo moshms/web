@@ -44,8 +44,11 @@ export default function App() {
 
   if (loading || setupRequired === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-sm text-muted-foreground">
-        Загружаем…
+      <div className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">
+        <div className="flex items-center gap-3">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" />
+          Загружаем…
+        </div>
       </div>
     );
   }

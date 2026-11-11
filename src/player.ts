@@ -10,6 +10,10 @@ type PlayerState = {
   duration: number;
   volume: number;
   playTrack: (track: Track, queue?: Track[]) => void;
+  playAt: (index: number) => void;
+  addToQueue: (track: Track) => void;
+  removeAt: (index: number) => void;
+  clearQueue: () => void;
   setPlaying: (playing: boolean) => void;
   toggle: () => void;
   next: () => void;
@@ -42,6 +46,56 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       duration: 0,
     });
   },
+
+  playAt: (index) => {
+    const { queue } = get();
+    if (index < 0 || index >= queue.length) {
+      return;
+    }
+    set({ index, playing: true, currentTime: 0, duration: 0 });
+  },
+
+  addToQueue: (track) => {
+    const { queue } = get();
+    if (queue.length === 0) {
+      get().playTrack(track);
+      return;
+    }
+    set({ queue: [...queue, track] });
+  },
+
+  removeAt: (index) => {
+    const { queue, index: current } = get();
+    if (index < 0 || index >= queue.length) {
+      return;
+    }
+
+    const nextQueue = queue.filter((_, position) => position !== index);
+    if (nextQueue.length === 0) {
+      set({ queue: [], index: 0, playing: false, currentTime: 0, duration: 0 });
+      return;
+    }
+
+    if (index < current) {
+      set({ queue: nextQueue, index: current - 1 });
+      return;
+    }
+
+    if (index === current) {
+      set({
+        queue: nextQueue,
+        index: Math.min(current, nextQueue.length - 1),
+        currentTime: 0,
+        duration: 0,
+        playing: true,
+      });
+      return;
+    }
+
+    set({ queue: nextQueue });
+  },
+
+  clearQueue: () => set({ queue: [], index: 0, playing: false, currentTime: 0, duration: 0 }),
 
   setPlaying: (playing) => set({ playing }),
 

@@ -247,6 +247,10 @@ export const api = {
   favorites: () => request<Favorites>("/api/v1/favorites"),
   starTrack: (id: string) => put(`/api/v1/tracks/${id}/star`),
   unstarTrack: (id: string) => remove(`/api/v1/tracks/${id}/star`),
+  starAlbum: (id: string) => put(`/api/v1/albums/${id}/star`),
+  unstarAlbum: (id: string) => remove(`/api/v1/albums/${id}/star`),
+  starArtist: (id: string) => put(`/api/v1/artists/${id}/star`),
+  unstarArtist: (id: string) => remove(`/api/v1/artists/${id}/star`),
 
   streamUrl: (trackId: string) => `/api/v1/stream/${trackId}`,
   artworkUrl: (albumId: string) => `/api/v1/artwork/${albumId}`,
