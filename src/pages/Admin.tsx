@@ -15,8 +15,7 @@ import {
 } from "@/api";
 import { Button } from "@/components/ui/button";
 
-const inputClass =
-  "h-9 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900";
+const inputClass = "mc-field";
 
 export function AdminPage() {
   const [features, setFeatures] = useState<Features | null>(null);
@@ -219,13 +218,14 @@ export function AdminPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Админка</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Управление</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Админка</h1>
           <p className="text-sm text-muted-foreground">Библиотеки, хранилища и пользователи</p>
         </div>
         {features?.worker && (
           <Link
             to="/admin/tags"
-            className="inline-flex h-9 items-center rounded-md border bg-white px-3 text-sm hover:bg-zinc-50"
+            className="inline-flex h-9 items-center rounded-xl border border-border/70 bg-card px-3 text-sm hover:bg-accent/50"
           >
             <Tags className="mr-2 h-4 w-4" />
             Редактор тегов
@@ -233,7 +233,7 @@ export function AdminPage() {
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {features && (
         <div className="flex flex-wrap gap-2 text-xs">
@@ -241,7 +241,9 @@ export function AdminPage() {
             <span
               key={name}
               className={`rounded-full border px-2 py-1 ${
-                enabled ? "bg-emerald-50 text-emerald-700" : "text-muted-foreground"
+                enabled
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "border-border/60 text-muted-foreground"
               }`}
             >
               {name}: {enabled ? "on" : "off"}
@@ -250,7 +252,7 @@ export function AdminPage() {
         </div>
       )}
 
-      <section className="space-y-3 rounded-lg border bg-white p-4">
+      <section className="space-y-3 mc-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-semibold">Сканирование</h2>
@@ -292,7 +294,7 @@ export function AdminPage() {
                         <td className="py-1 pr-3">{result.stats.errors}</td>
                       </>
                     ) : (
-                      <td className="py-1 pr-3 text-red-600" colSpan={7}>
+                      <td className="py-1 pr-3 text-destructive" colSpan={7}>
                         {result.error}
                       </td>
                     )}
@@ -304,7 +306,7 @@ export function AdminPage() {
         )}
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-white p-4">
+      <section className="space-y-3 mc-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-semibold">Импорт</h2>
@@ -330,7 +332,7 @@ export function AdminPage() {
                   {String(job.payload.source_key ?? job.payload.filename ?? "")}
                 </p>
                 {job.last_error && (
-                  <p className="truncate text-xs text-red-600">{job.last_error}</p>
+                  <p className="truncate text-xs text-destructive">{job.last_error}</p>
                 )}
               </div>
               {(job.status === "needs_review" || job.status === "failed") && (
@@ -346,7 +348,7 @@ export function AdminPage() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-white p-4">
+      <section className="space-y-3 mc-surface p-4">
         <h2 className="font-semibold">Хранилища</h2>
         <div className="divide-y text-sm">
           {storages.map((storage) => (
@@ -462,7 +464,7 @@ export function AdminPage() {
         </form>
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-white p-4">
+      <section className="space-y-3 mc-surface p-4">
         <h2 className="font-semibold">Библиотеки</h2>
         <div className="divide-y text-sm">
           {libraries.map((library) => (
@@ -521,7 +523,7 @@ export function AdminPage() {
         </form>
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-white p-4">
+      <section className="space-y-3 mc-surface p-4">
         <h2 className="font-semibold">Пользователи</h2>
         <div className="divide-y text-sm">
           {users.map((user) => (
@@ -537,7 +539,7 @@ export function AdminPage() {
                 onChange={(event) =>
                   void updateUser(user, { role: event.target.value as Role })
                 }
-                className="h-8 rounded-md border bg-white px-2 text-xs"
+                className="h-8 rounded-lg border border-border/70 bg-card px-2 text-xs"
               >
                 <option value="admin">admin</option>
                 <option value="uploader">uploader</option>

@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Music2 } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
 import { useAuth } from "@/auth";
+import { AuthShell } from "@/components/AuthShell";
 import { Button } from "@/components/ui/button";
 
 export function Login() {
@@ -31,28 +32,21 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-6">
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="w-full max-w-sm space-y-5 rounded-xl border bg-white p-8 shadow-sm"
-      >
-        <div className="flex items-center gap-2">
-          <Music2 className="h-6 w-6" />
-          <h1 className="text-xl font-semibold">Music Cloud</h1>
-        </div>
-
-        <label className="block space-y-1 text-sm">
+    <AuthShell title="С возвращением" subtitle="Войдите, чтобы продолжить слушать.">
+      <form onSubmit={(event) => void submit(event)} className="space-y-4">
+        <label className="block space-y-1.5 text-sm">
           <span className="font-medium">Логин</span>
           <input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             autoComplete="username"
+            autoFocus
             required
-            className="h-10 w-full rounded-md border px-3 outline-none focus:ring-2 focus:ring-zinc-900"
+            className="mc-field"
           />
         </label>
 
-        <label className="block space-y-1 text-sm">
+        <label className="block space-y-1.5 text-sm">
           <span className="font-medium">Пароль</span>
           <input
             type="password"
@@ -60,16 +54,21 @@ export function Login() {
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="current-password"
             required
-            className="h-10 w-full rounded-md border px-3 outline-none focus:ring-2 focus:ring-zinc-900"
+            className="mc-field"
           />
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full" disabled={loading}>
+          {loading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogIn className="mr-2 h-4 w-4" />
+          )}
           {loading ? "Входим…" : "Войти"}
         </Button>
       </form>
-    </div>
+    </AuthShell>
   );
 }

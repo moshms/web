@@ -17,8 +17,7 @@ type Artwork = {
   base64: string;
 };
 
-const inputClass =
-  "h-9 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900";
+const inputClass = "mc-field";
 
 export function TagEditorPage() {
   const [features, setFeatures] = useState<Features | null>(null);
@@ -158,7 +157,7 @@ export function TagEditorPage() {
 
   if (features && !features.worker) {
     return (
-      <div className="rounded-lg border bg-white p-6 text-sm text-muted-foreground">
+      <div className="mc-surface p-6 text-sm text-muted-foreground">
         Редактор тегов требует запущенный `mc-worker` (профиль `worker`).
       </div>
     );
@@ -170,13 +169,14 @@ export function TagEditorPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Редактор тегов</h1>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Метаданные</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Редактор тегов</h1>
         <p className="text-sm text-muted-foreground">
           Массовая правка тегов и замена обложки через фоновую запись в файлы
         </p>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {message && <p className="text-sm text-emerald-700">{message}</p>}
 
       <form onSubmit={(event) => void search(event)} className="flex max-w-xl gap-2">
@@ -193,11 +193,11 @@ export function TagEditorPage() {
       </form>
 
       {results.length > 0 && (
-        <div className="divide-y rounded-lg border bg-white">
+        <div className="divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50">
           {results.map((track) => (
             <label
               key={track.id}
-              className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-zinc-50"
+              className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-accent/50"
             >
               <input
                 type="checkbox"
@@ -216,9 +216,9 @@ export function TagEditorPage() {
         </div>
       )}
 
-      <form onSubmit={(event) => void submit(event)} className="space-y-4 rounded-lg border bg-white p-4">
+      <form onSubmit={(event) => void submit(event)} className="space-y-4 mc-surface p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded-full bg-zinc-100 px-3 py-1">
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
             Выбрано: {selected.size}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -239,7 +239,7 @@ export function TagEditorPage() {
             type="file"
             accept="image/*"
             onChange={(event) => selectArtwork(event.target.files?.[0] ?? null)}
-            className="h-9 w-full rounded-md border bg-white px-3 py-1 text-sm"
+            className="mc-field h-auto py-1.5 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-primary"
           />
         </div>
 
@@ -250,7 +250,7 @@ export function TagEditorPage() {
           </p>
         )}
 
-        <div className="rounded-md bg-zinc-50 p-3 text-xs">
+        <div className="rounded-md bg-muted/60 p-3 text-xs">
           <p className="font-medium">Предпросмотр изменений</p>
           <p className="mt-1 text-muted-foreground">
             {Object.keys(changes).length === 0
@@ -280,14 +280,14 @@ export function TagEditorPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Последние правки
         </h2>
-        <div className="divide-y rounded-lg border bg-white text-sm">
+        <div className="divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50 text-sm">
           {edits.map((edit) => (
             <div key={edit.id} className="px-3 py-2">
               <p className="font-medium">
                 {edit.track_ids.length} треков ·{" "}
                 <span className="text-xs text-muted-foreground">{edit.status}</span>
               </p>
-              {edit.error && <p className="text-xs text-red-600">{edit.error}</p>}
+              {edit.error && <p className="text-xs text-destructive">{edit.error}</p>}
             </div>
           ))}
           {edits.length === 0 && (

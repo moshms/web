@@ -9,6 +9,39 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: [
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Inter",
+          "sans-serif",
+        ],
+      },
+      boxShadow: {
+        glow: "0 0 40px -12px hsl(var(--primary) / 0.55)",
+      },
+      keyframes: {
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.97)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 180ms ease-out",
+        "slide-up": "slide-up 220ms ease-out",
+        "scale-in": "scale-in 180ms ease-out",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
