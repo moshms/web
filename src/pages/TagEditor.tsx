@@ -1,0 +1,300 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { Check, Music2, Search } from "lucide-react";
+
+import {
+  api,
+  ApiError,
+  type Features,
+  type TagChanges,
+  type TagEdit,
+  type Track,
+} from "@/api";
+import { Button } from "@/components/ui/button";
+
+type Artwork = {
+  name: string;
+  mime: string;
+  base64: string;
+};
+
+const inputClass =
+  "h-9 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900";
+
+export function TagEditorPage() {
+  const [features, setFeatures] = useState<Features | null>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Track[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [title, setTitle] = useState("");
+  const [artist, setArtist] = useState("");
+  const [albumArtist, setAlbumArtist] = useState("");
+  const [album, setAlbum] = useState("");
+  const [year, setYear] = useState("");
+  const [trackNo, setTrackNo] = useState("");
+  const [discNo, setDiscNo] = useState("");
+  const [genres, setGenres] = useState("");
+  const [artwork, setArtwork] = useState<Artwork | null>(null);
+  const [edits, setEdits] = useState<TagEdit[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadEdits = () =>
+    api.admin
+      .tagEdits()
+      .then(setEdits)
+      .catch((caught) =>
+        setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить правки"),
+      );
+
+  useEffect(() => {
+    api.features().then(setFeatures).catch(() => setFeatures(null));
+    void loadEdits();
+  }, []);
+
+  const search = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!query.trim()) {
+      return;
+    }
+
+    try {
+      const found = await api.search(query.trim());
+      setResults(found.tracks);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Поиск не удался");
+    }
+  };
+
+  const toggle = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectArtwork = (file: File | null) => {
+    if (!file) {
+      setArtwork(null);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result);
+      const base64 = result.split(",")[1] ?? "";
+      setArtwork({ name: file.name, mime: file.type, base64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const buildChanges = (): TagChanges => {
+    const changes: TagChanges = {};
+
+    if (title.trim()) changes.title = title.trim();
+    if (artist.trim()) changes.artist = artist.trim();
+    if (albumArtist.trim()) changes.album_artist = albumArtist.trim();
+    if (album.trim()) changes.album = album.trim();
+    if (year.trim()) changes.year = Number(year);
+    if (trackNo.trim()) changes.track_no = Number(trackNo);
+    if (discNo.trim()) changes.disc_no = Number(discNo);
+    if (genres.trim()) {
+      changes.genres = genres
+        .split(",")
+        .map((genre) => genre.trim())
+        .filter(Boolean);
+    }
+
+    return changes;
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (selected.size === 0) {
+      setError("Выберите хотя бы один трек");
+      return;
+    }
+
+    const changes = buildChanges();
+    if (Object.keys(changes).length === 0 && !artwork) {
+      setError("Заполните хотя бы одно поле или выберите обложку");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await api.admin.createTagEdit({
+        track_ids: [...selected],
+        changes,
+        artwork_base64: artwork?.base64,
+        artwork_mime: artwork?.mime,
+      });
+      setMessage("Правка поставлена в очередь воркера");
+      setSelected(new Set());
+      setTitle("");
+      setArtist("");
+      setAlbumArtist("");
+      setAlbum("");
+      setYear("");
+      setTrackNo("");
+      setDiscNo("");
+      setGenres("");
+      setArtwork(null);
+      await loadEdits();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось создать правку");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (features && !features.worker) {
+    return (
+      <div className="rounded-lg border bg-white p-6 text-sm text-muted-foreground">
+        Редактор тегов требует запущенный `mc-worker` (профиль `worker`).
+      </div>
+    );
+  }
+
+  const changes = buildChanges();
+  const selectedTracks = results.filter((track) => selected.has(track.id));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Редактор тегов</h1>
+        <p className="text-sm text-muted-foreground">
+          Массовая правка тегов и замена обложки через фоновую запись в файлы
+        </p>
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {message && <p className="text-sm text-emerald-700">{message}</p>}
+
+      <form onSubmit={(event) => void search(event)} className="flex max-w-xl gap-2">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Найти треки"
+          className={inputClass}
+        />
+        <Button type="submit">
+          <Search className="mr-2 h-4 w-4" />
+          Найти
+        </Button>
+      </form>
+
+      {results.length > 0 && (
+        <div className="divide-y rounded-lg border bg-white">
+          {results.map((track) => (
+            <label
+              key={track.id}
+              className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-zinc-50"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(track.id)}
+                onChange={() => toggle(track.id)}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{track.title}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {track.artist ?? "—"}
+                  {track.album ? ` · ${track.album}` : ""}
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={(event) => void submit(event)} className="space-y-4 rounded-lg border bg-white p-4">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full bg-zinc-100 px-3 py-1">
+            Выбрано: {selected.size}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Пустые поля не меняются
+          </span>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Название" className={inputClass} />
+          <input value={artist} onChange={(event) => setArtist(event.target.value)} placeholder="Исполнитель" className={inputClass} />
+          <input value={albumArtist} onChange={(event) => setAlbumArtist(event.target.value)} placeholder="Album artist" className={inputClass} />
+          <input value={album} onChange={(event) => setAlbum(event.target.value)} placeholder="Альбом" className={inputClass} />
+          <input value={year} onChange={(event) => setYear(event.target.value)} placeholder="Год" inputMode="numeric" className={inputClass} />
+          <input value={trackNo} onChange={(event) => setTrackNo(event.target.value)} placeholder="Номер трека" inputMode="numeric" className={inputClass} />
+          <input value={discNo} onChange={(event) => setDiscNo(event.target.value)} placeholder="Номер диска" inputMode="numeric" className={inputClass} />
+          <input value={genres} onChange={(event) => setGenres(event.target.value)} placeholder="Жанры через запятую" className={inputClass} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => selectArtwork(event.target.files?.[0] ?? null)}
+            className="h-9 w-full rounded-md border bg-white px-3 py-1 text-sm"
+          />
+        </div>
+
+        {artwork && (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Music2 className="h-4 w-4" />
+            Обложка: {artwork.name}
+          </p>
+        )}
+
+        <div className="rounded-md bg-zinc-50 p-3 text-xs">
+          <p className="font-medium">Предпросмотр изменений</p>
+          <p className="mt-1 text-muted-foreground">
+            {Object.keys(changes).length === 0
+              ? "Только обложка"
+              : Object.entries(changes)
+                  .map(([key, value]) => `${key} → ${Array.isArray(value) ? value.join(", ") : value}`)
+                  .join("; ")}
+          </p>
+          {selectedTracks.length > 0 && (
+            <ul className="mt-2 space-y-1 text-muted-foreground">
+              {selectedTracks.map((track) => (
+                <li key={track.id} className="truncate">
+                  {track.title} — {track.artist ?? "—"}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <Button type="submit" disabled={busy || selected.size === 0}>
+          <Check className="mr-2 h-4 w-4" />
+          Применить к {selected.size} трекам
+        </Button>
+      </form>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Последние правки
+        </h2>
+        <div className="divide-y rounded-lg border bg-white text-sm">
+          {edits.map((edit) => (
+            <div key={edit.id} className="px-3 py-2">
+              <p className="font-medium">
+                {edit.track_ids.length} треков ·{" "}
+                <span className="text-xs text-muted-foreground">{edit.status}</span>
+              </p>
+              {edit.error && <p className="text-xs text-red-600">{edit.error}</p>}
+            </div>
+          ))}
+          {edits.length === 0 && (
+            <p className="px-3 py-2 text-sm text-muted-foreground">Правок пока нет.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
