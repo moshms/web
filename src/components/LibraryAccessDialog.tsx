@@ -16,17 +16,20 @@ type AvailableRole = { id: string; name: string; color: number | null; is_everyo
 type AvailableUser = { id: string; username: string };
 
 const levels = [
-  { key: "view", label: "Слушать", allow: P.LIBRARY_VIEW },
-  { key: "download", label: "Скачивать", allow: P.LIBRARY_VIEW | P.LIBRARY_DOWNLOAD },
+  { key: "deny", label: "Запретить", allow: 0, deny: P.LIBRARY_VIEW },
+  { key: "view", label: "Слушать", allow: P.LIBRARY_VIEW, deny: 0 },
+  { key: "download", label: "Скачивать", allow: P.LIBRARY_VIEW | P.LIBRARY_DOWNLOAD, deny: 0 },
   {
     key: "upload",
     label: "Загружать",
     allow: P.LIBRARY_VIEW | P.LIBRARY_DOWNLOAD | P.LIBRARY_UPLOAD,
+    deny: 0,
   },
   {
     key: "edit",
     label: "Редактировать",
     allow: P.LIBRARY_VIEW | P.LIBRARY_DOWNLOAD | P.LIBRARY_UPLOAD | P.LIBRARY_EDIT_TAGS,
+    deny: 0,
   },
   {
     key: "full",
@@ -37,10 +40,12 @@ const levels = [
       P.LIBRARY_UPLOAD |
       P.LIBRARY_EDIT_TAGS |
       P.LIBRARY_DELETE_FILES,
+    deny: 0,
   },
 ];
 
-function levelLabel(allow: number) {
+function levelLabel(allow: number, deny: number) {
+  if ((deny & P.LIBRARY_VIEW) !== 0) return "Запрещено";
   if ((allow & P.LIBRARY_DELETE_FILES) !== 0) return "Полный доступ";
   if ((allow & P.LIBRARY_EDIT_TAGS) !== 0) return "Редактирование";
   if ((allow & P.LIBRARY_UPLOAD) !== 0) return "Загрузка";
@@ -147,7 +152,7 @@ export function LibraryAccessDialog({
     try {
       await api.setLibraryPermission(library.id, targetType, targetId, {
         allow: preset.allow,
-        deny: 0,
+        deny: preset.deny,
       });
       setTargetId("");
       await load();
@@ -234,7 +239,7 @@ export function LibraryAccessDialog({
                       <p className="truncate text-sm font-medium">{targetName(overwrite)}</p>
                       <p className="text-xs text-muted-foreground">
                         {overwrite.target_type === "role" ? "Роль" : "Пользователь"} ·{" "}
-                        {levelLabel(overwrite.allow)}
+                        {levelLabel(overwrite.allow, overwrite.deny)}
                       </p>
                     </div>
                     <Button
