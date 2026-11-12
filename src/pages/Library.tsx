@@ -199,7 +199,7 @@ export function LibraryPage() {
       )}
 
       {!loading && !error && tab === "artists" && filteredArtists.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
           {filteredArtists.map((artist) => (
             <ArtistCard
               key={artist.id}
@@ -212,7 +212,7 @@ export function LibraryPage() {
       )}
 
       {!loading && !error && tab === "albums" && filteredAlbums.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
           {filteredAlbums.map((album) => (
             <AlbumCard
               key={album.id}
