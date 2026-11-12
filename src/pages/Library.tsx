@@ -135,7 +135,7 @@ export function LibraryPage() {
           />
         </div>
 
-        <div className="inline-flex w-fit rounded-full border border-border/70 bg-card/60 p-1">
+        <div className="inline-flex w-fit rounded-full bg-card/60 p-1">
           {(
             [
               ["artists", "Исполнители", artists.length],
@@ -171,7 +171,7 @@ export function LibraryPage() {
       )}
 
       {error && (
-        <div className="mc-surface border-destructive/30 p-6 text-center text-sm text-destructive">
+        <div className="mc-surface bg-destructive/10 p-6 text-center text-sm text-destructive">
           {error}
         </div>
       )}

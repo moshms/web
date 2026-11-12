@@ -49,8 +49,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={item.id}
               role="status"
               className={cn(
-                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border bg-card/95 px-4 py-3 text-sm shadow-xl backdrop-blur animate-slide-up",
-                item.kind === "error" && "border-destructive/40",
+                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl bg-card/95 px-4 py-3 text-sm shadow-xl backdrop-blur animate-slide-up",
+                item.kind === "error" && "bg-destructive/10",
               )}
             >
               <Icon

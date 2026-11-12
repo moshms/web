@@ -114,7 +114,7 @@ export function PlaylistPage() {
         ← Плейлисты
       </Link>
 
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-5 md:p-7">
+      <section className="relative overflow-hidden rounded-3xl bg-card/60 p-5 md:p-7">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end">
           <div className="flex aspect-square w-40 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/35 via-primary/15 to-secondary text-primary/70 shadow-xl sm:w-44">

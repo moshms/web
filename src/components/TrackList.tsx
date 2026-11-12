@@ -117,7 +117,7 @@ export function TrackList({
 
   return (
     <>
-      <div className="rounded-2xl border border-border/60 bg-card/50 p-1.5">
+      <div className="divide-y divide-border/40 rounded-2xl bg-card/40 p-1.5">
         {tracks.map((track, index) => (
           <div
             key={`${track.id}-${index}`}
@@ -369,7 +369,7 @@ function TrackMenu({
             zIndex: 130,
           }}
           className={cn(
-            "rounded-xl border border-border/70 bg-popover p-1 text-sm shadow-2xl animate-scale-in",
+            "rounded-xl bg-popover p-1 text-sm shadow-2xl animate-scale-in",
             position.bottom !== undefined ? "origin-bottom-right" : "origin-top-right",
           )}
         >

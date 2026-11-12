@@ -85,7 +85,7 @@
 
 @layer components {
   .mc-surface {
-    @apply rounded-2xl border border-border/70 bg-card/80 shadow-sm backdrop-blur;
+    @apply rounded-2xl bg-card/80 shadow-sm backdrop-blur;
   }
 
   .mc-field {

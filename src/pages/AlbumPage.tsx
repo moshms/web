@@ -156,7 +156,7 @@ export function AlbumPage() {
         ← {album.album_artist}
       </Link>
 
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-4 md:p-6">
+      <section className="relative overflow-hidden rounded-3xl bg-card/60 p-4 md:p-6">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
           {album.artwork_id && (

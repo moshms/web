@@ -132,7 +132,7 @@ export function ArtistPage() {
         ← Библиотека
       </Link>
 
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-5 md:p-7">
+      <section className="relative overflow-hidden rounded-3xl bg-card/60 p-5 md:p-7">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 via-primary/50 to-orange-600 text-4xl font-semibold text-primary-foreground shadow-xl shadow-primary/20 sm:h-32 sm:w-32">

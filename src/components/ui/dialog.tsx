@@ -66,7 +66,7 @@ export function Dialog({
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
-          "relative z-10 max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border bg-card p-5 shadow-2xl animate-slide-up sm:rounded-2xl",
+          "relative z-10 max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl bg-card p-5 shadow-2xl animate-slide-up sm:rounded-2xl",
           size === "sm" && "sm:max-w-sm",
           size === "md" && "sm:max-w-lg",
           size === "lg" && "sm:max-w-2xl",

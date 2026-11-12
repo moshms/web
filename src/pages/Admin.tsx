@@ -225,7 +225,7 @@ export function AdminPage() {
         {features?.worker && (
           <Link
             to="/admin/tags"
-            className="inline-flex h-9 items-center rounded-xl border border-border/70 bg-card px-3 text-sm hover:bg-accent/50"
+            className="inline-flex h-9 items-center rounded-xl bg-secondary/60 px-3 text-sm hover:bg-secondary"
           >
             <Tags className="mr-2 h-4 w-4" />
             Редактор тегов
@@ -240,10 +240,10 @@ export function AdminPage() {
           {Object.entries(features).map(([name, enabled]) => (
             <span
               key={name}
-              className={`rounded-full border px-2 py-1 ${
+              className={`rounded-full px-2.5 py-1 ${
                 enabled
-                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "border-border/60 text-muted-foreground"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "bg-muted/60 text-muted-foreground"
               }`}
             >
               {name}: {enabled ? "on" : "off"}
