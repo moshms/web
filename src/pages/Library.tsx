@@ -7,6 +7,7 @@ import { useAuth } from "@/auth";
 import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
 import { artistsLabel, albumsLabel, tracksLabel } from "@/lib/plural";
+import { canAnyLibrary, P } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,7 @@ export function LibraryPage() {
   const playTrack = usePlayer((state) => state.playTrack);
   const { user } = useAuth();
   const { toast } = useToast();
-  const canUpload = user?.role === "admin" || user?.role === "uploader";
+  const canUpload = canAnyLibrary(user, P.LIBRARY_UPLOAD);
 
   useEffect(() => {
     Promise.all([api.artists(), api.albums()])

@@ -16,6 +16,7 @@ import { Artwork } from "@/components/Artwork";
 import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
 import { tracksLabel } from "@/lib/plural";
+import { canEditTrack as canEditTrackPermission } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -145,7 +146,11 @@ export function AlbumPage() {
     album.tracks.reduce((sum, track) => sum + (track.duration_ms ?? 0), 0) / 1000,
   );
   const minutes = Math.floor(totalDuration / 60);
-  const canEdit = user?.role === "admin" && Boolean(features?.tag_editor);
+  const canEdit = Boolean(
+    features?.tag_editor &&
+      album.tracks.length > 0 &&
+      album.tracks.every((track) => canEditTrackPermission(user, track)),
+  );
 
   return (
     <div className="space-y-6">

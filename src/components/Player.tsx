@@ -32,6 +32,7 @@ import { TrackEditDialog } from "@/components/TrackEditDialog";
 import { Artwork } from "@/components/Artwork";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { canLibrary, P } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -121,7 +122,14 @@ export function Player() {
   const [editOpen, setEditOpen] = useState(false);
   const [trackEditOpen, setTrackEditOpen] = useState(false);
 
-  const canEditAlbum = user?.role === "admin" && Boolean(features?.tag_editor);
+  const canEditTrack = Boolean(
+    features?.tag_editor &&
+      track &&
+      (canLibrary(user, track.library_id, P.LIBRARY_EDIT_TAGS) ||
+        (canLibrary(user, track.library_id, P.LIBRARY_UPLOAD) &&
+          track.uploaded_by === user?.id)),
+  );
+  const canEditAlbum = canEditTrack && Boolean(track?.album_id);
   const isStarred = track ? starred.has(track.id) : false;
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const rangeStyle = { "--range-progress": `${progress}%` } as CSSProperties;
@@ -527,7 +535,7 @@ export function Player() {
                   Свернуть
                 </button>
                 <div className="flex items-center gap-1">
-                  {canEditAlbum && track && (
+                  {canEditTrack && track && (
                     <Button
                       variant="outline"
                       size="sm"

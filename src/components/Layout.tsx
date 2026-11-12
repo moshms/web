@@ -6,6 +6,8 @@ import {
   Music2,
   Search,
   Settings,
+  ShieldCheck,
+  Tags,
   Upload,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -13,6 +15,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 
 import { useAuth } from "@/auth";
 import { Player } from "@/components/Player";
+import { can, canAnyLibrary, canManageServer, P } from "@/permissions";
 import { ThemeToggle } from "@/theme";
 import { cn } from "@/lib/utils";
 
@@ -34,8 +37,11 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
-  const canUpload = user?.role === "admin" || user?.role === "uploader";
-  const isAdmin = user?.role === "admin";
+  const canUpload = canAnyLibrary(user, P.LIBRARY_UPLOAD);
+  const canManage = canManageServer(user);
+  const canRoles = can(user, P.MANAGE_ROLES);
+  const canTags =
+    canAnyLibrary(user, P.LIBRARY_EDIT_TAGS) || canAnyLibrary(user, P.LIBRARY_UPLOAD);
 
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0);
@@ -104,7 +110,7 @@ export function Layout() {
               </NavLink>
             ))}
 
-            {(canUpload || isAdmin) && (
+            {(canUpload || canManage) && (
               <>
                 <p className="px-3 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
                   Управление
@@ -125,7 +131,39 @@ export function Layout() {
                     Загрузка
                   </NavLink>
                 )}
-                {isAdmin && (
+                {canTags && (
+                  <NavLink
+                    to="/admin/tags"
+                    className={({ isActive }) =>
+                      cn(
+                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
+                      )
+                    }
+                  >
+                    <Tags className="h-[18px] w-[18px]" />
+                    Теги
+                  </NavLink>
+                )}
+                {canRoles && (
+                  <NavLink
+                    to="/admin/roles"
+                    className={({ isActive }) =>
+                      cn(
+                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
+                      )
+                    }
+                  >
+                    <ShieldCheck className="h-[18px] w-[18px]" />
+                    Роли
+                  </NavLink>
+                )}
+                {canManage && (
                   <NavLink
                     to="/admin"
                     className={({ isActive }) =>
@@ -154,7 +192,7 @@ export function Layout() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{user?.username}</p>
                   <p className="truncate text-[11px] text-muted-foreground">
-                    {user ? roleLabels[user.role] : ""}
+                    {user?.roles[0]?.name ?? (user ? roleLabels[user.role] : "")}
                   </p>
                 </div>
               </div>
@@ -198,7 +236,7 @@ export function Layout() {
               >
                 <Search className="h-4 w-4" />
               </Link>
-              {isAdmin && (
+              {canManage && (
                 <Link
                   to="/admin"
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground md:hidden"

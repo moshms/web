@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { RefreshCw, Tags, Trash2 } from "lucide-react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { RefreshCw, ShieldCheck, Tags, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import {
@@ -13,11 +13,27 @@ import {
   type Role,
   type Storage,
 } from "@/api";
+import { useAuth } from "@/auth";
+import { LibraryAccessDialog } from "@/components/LibraryAccessDialog";
 import { Button } from "@/components/ui/button";
+import { can, canAnyLibrary, P } from "@/permissions";
 
 const inputClass = "mc-field";
 
+function Section({ show, children }: { show: boolean; children: ReactNode }) {
+  if (!show) return null;
+  return <section className="space-y-3 mc-surface p-4">{children}</section>;
+}
+
 export function AdminPage() {
+  const { user } = useAuth();
+  const canScans = can(user, P.RUN_SCANS);
+  const canStorages = can(user, P.MANAGE_STORAGES);
+  const canLibraries = can(user, P.MANAGE_LIBRARIES);
+  const canUsers = can(user, P.MANAGE_USERS);
+  const canRoles = can(user, P.MANAGE_ROLES);
+  const canEditAny =
+    canAnyLibrary(user, P.LIBRARY_EDIT_TAGS) || canAnyLibrary(user, P.LIBRARY_UPLOAD);
   const [features, setFeatures] = useState<Features | null>(null);
   const [storages, setStorages] = useState<Storage[]>([]);
   const [libraries, setLibraries] = useState<Library[]>([]);
@@ -41,6 +57,8 @@ export function AdminPage() {
   const [libraryName, setLibraryName] = useState("");
   const [libraryStorage, setLibraryStorage] = useState("");
   const [libraryPrefix, setLibraryPrefix] = useState("");
+  const [libraryAccess, setLibraryAccess] = useState<"closed" | "everyone">("closed");
+  const [accessLibrary, setAccessLibrary] = useState<Library | null>(null);
 
   const [userName, setUserName] = useState("");
   const [userPassword, setUserPassword] = useState("");
@@ -51,19 +69,22 @@ export function AdminPage() {
   };
 
   const load = async () => {
-    const [loadedFeatures, loadedStorages, loadedLibraries, loadedUsers, loadedJobs] =
-      await Promise.all([
-        api.features(),
-        api.admin.storages(),
-        api.admin.libraries(),
-        api.admin.users(),
-        api.admin.jobs(),
-      ]);
-    setFeatures(loadedFeatures);
-    setStorages(loadedStorages);
-    setLibraries(loadedLibraries);
-    setUsers(loadedUsers);
-    setJobs(loadedJobs);
+    const tasks: Promise<void>[] = [
+      api.features().then(setFeatures),
+    ];
+    if (canScans) {
+      tasks.push(api.admin.jobs().then(setJobs));
+    }
+    if (canStorages) {
+      tasks.push(api.admin.storages().then(setStorages));
+    }
+    if (canLibraries) {
+      tasks.push(api.admin.libraries().then(setLibraries));
+    }
+    if (canUsers) {
+      tasks.push(api.admin.users().then(setUsers));
+    }
+    await Promise.all(tasks);
   };
 
   useEffect(() => {
@@ -125,9 +146,15 @@ export function AdminPage() {
         name: libraryName,
         storage_id: libraryStorage,
         root_prefix: libraryPrefix,
+        access: {
+          everyone: libraryAccess === "everyone",
+          roles: [],
+          users: [],
+        },
       });
       setLibraryName("");
       setLibraryPrefix("");
+      setLibraryAccess("closed");
       await load();
     } catch (caught) {
       showError(caught);
@@ -222,15 +249,26 @@ export function AdminPage() {
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Админка</h1>
           <p className="text-sm text-muted-foreground">Библиотеки, хранилища и пользователи</p>
         </div>
-        {features?.worker && (
-          <Link
-            to="/admin/tags"
-            className="inline-flex h-9 items-center rounded-xl bg-secondary/60 px-3 text-sm hover:bg-secondary"
-          >
-            <Tags className="mr-2 h-4 w-4" />
-            Редактор тегов
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {canRoles && (
+            <Link
+              to="/admin/roles"
+              className="inline-flex h-9 items-center rounded-xl bg-secondary/60 px-3 text-sm hover:bg-secondary"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Роли
+            </Link>
+          )}
+          {features?.worker && canEditAny && (
+            <Link
+              to="/admin/tags"
+              className="inline-flex h-9 items-center rounded-xl bg-secondary/60 px-3 text-sm hover:bg-secondary"
+            >
+              <Tags className="mr-2 h-4 w-4" />
+              Редактор тегов
+            </Link>
+          )}
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -252,7 +290,7 @@ export function AdminPage() {
         </div>
       )}
 
-      <section className="space-y-3 mc-surface p-4">
+      <Section show={canScans}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-semibold">Сканирование</h2>
@@ -304,9 +342,9 @@ export function AdminPage() {
             </table>
           </div>
         )}
-      </section>
+      </Section>
 
-      <section className="space-y-3 mc-surface p-4">
+      <Section show={canScans}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-semibold">Импорт</h2>
@@ -346,9 +384,9 @@ export function AdminPage() {
             <p className="text-sm text-muted-foreground">Заданий пока нет.</p>
           )}
         </div>
-      </section>
+      </Section>
 
-      <section className="space-y-3 mc-surface p-4">
+      <Section show={canStorages}>
         <h2 className="font-semibold">Хранилища</h2>
         <div className="divide-y text-sm">
           {storages.map((storage) => (
@@ -462,9 +500,9 @@ export function AdminPage() {
             </Button>
           </div>
         </form>
-      </section>
+      </Section>
 
-      <section className="space-y-3 mc-surface p-4">
+      <Section show={canLibraries}>
         <h2 className="font-semibold">Библиотеки</h2>
         <div className="divide-y text-sm">
           {libraries.map((library) => (
@@ -475,6 +513,9 @@ export function AdminPage() {
                   storage {library.storage_id} · prefix {library.root_prefix || "—"}
                 </p>
               </div>
+              <Button variant="outline" size="sm" onClick={() => setAccessLibrary(library)}>
+                Доступ
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -517,13 +558,23 @@ export function AdminPage() {
             placeholder="Root prefix"
             className={inputClass}
           />
+          <select
+            value={libraryAccess}
+            onChange={(event) =>
+              setLibraryAccess(event.target.value as "closed" | "everyone")
+            }
+            className={inputClass}
+          >
+            <option value="closed">Закрытая</option>
+            <option value="everyone">Доступна всем</option>
+          </select>
           <Button type="submit" disabled={busy || !libraryStorage}>
             Добавить библиотеку
           </Button>
         </form>
-      </section>
+      </Section>
 
-      <section className="space-y-3 mc-surface p-4">
+      <Section show={canUsers}>
         <h2 className="font-semibold">Пользователи</h2>
         <div className="divide-y text-sm">
           {users.map((user) => (
@@ -534,17 +585,24 @@ export function AdminPage() {
                   {user.is_active ? "активен" : "отключён"}
                 </p>
               </div>
-              <select
-                value={user.role}
-                onChange={(event) =>
-                  void updateUser(user, { role: event.target.value as Role })
-                }
-                className="h-8 rounded-lg border border-border/70 bg-card px-2 text-xs"
-              >
-                <option value="admin">admin</option>
-                <option value="uploader">uploader</option>
-                <option value="listener">listener</option>
-              </select>
+              <div className="flex flex-wrap gap-1">
+                {user.roles.length === 0 && (
+                  <span className="text-xs text-muted-foreground">@everyone</span>
+                )}
+                {user.roles.map((role) => (
+                  <span
+                    key={role.id}
+                    className="rounded-full bg-secondary/70 px-2 py-0.5 text-[10px] font-medium"
+                    style={
+                      role.color === null
+                        ? undefined
+                        : { color: `#${role.color.toString(16).padStart(6, "0")}` }
+                    }
+                  >
+                    {role.name}
+                  </span>
+                ))}
+              </div>
               <label className="flex items-center gap-1 text-xs">
                 <input
                   type="checkbox"
@@ -580,7 +638,7 @@ export function AdminPage() {
             onChange={(event) => setUserPassword(event.target.value)}
             placeholder="Пароль"
             type="password"
-            minLength={8}
+            minLength={12}
             required
             className={inputClass}
           />
@@ -597,7 +655,13 @@ export function AdminPage() {
             Добавить пользователя
           </Button>
         </form>
-      </section>
+      </Section>
+
+      <LibraryAccessDialog
+        library={accessLibrary}
+        open={accessLibrary !== null}
+        onClose={() => setAccessLibrary(null)}
+      />
     </div>
   );
 }

@@ -9,6 +9,8 @@ import {
 import * as tus from "tus-js-client";
 
 import { api, ApiError, type Library } from "@/api";
+import { useAuth } from "@/auth";
+import { canAnyLibrary, canLibrary, P } from "@/permissions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -27,22 +29,35 @@ export function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const uploadable = libraries.filter((library) =>
+    canLibrary(user, library.id, P.LIBRARY_UPLOAD),
+  );
 
   useEffect(() => {
     api
       .libraries()
-      .then((loaded) => {
-        setLibraries(loaded);
-        setLibraryId(
-          loaded.find((library) => library.is_import_target)?.id ?? loaded[0]?.id ?? "",
-        );
-      })
+      .then(setLibraries)
       .catch((caught) =>
         setError(
           caught instanceof ApiError ? caught.message : "Не удалось загрузить библиотеки",
         ),
       );
   }, []);
+
+  useEffect(() => {
+    if (uploadable.length === 0) {
+      if (libraryId) {
+        setLibraryId("");
+      }
+      return;
+    }
+    if (!uploadable.some((library) => library.id === libraryId)) {
+      setLibraryId(
+        uploadable.find((library) => library.is_import_target)?.id ?? uploadable[0]?.id ?? "",
+      );
+    }
+  }, [libraries, user, libraryId]);
 
   const updateItem = (id: string, patch: Partial<UploadItem>) => {
     setItems((current) =>
@@ -112,7 +127,8 @@ export function UploadPage() {
 
   return (
     <div className="space-y-7">
-      <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
           Загрузка
         </p>
@@ -122,11 +138,24 @@ export function UploadPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Файлы попадут в выбранную библиотеку и проиндексируются автоматически
         </p>
+        </div>
+        {canAnyLibrary(user, P.LIBRARY_EDIT_TAGS) && (
+          <Button asChild variant="outline">
+            <a href="/admin/tags">Редактор тегов</a>
+          </Button>
+        )}
       </div>
 
       {error && (
         <div className="mc-surface bg-destructive/10 p-4 text-sm text-destructive">
           {error}
+        </div>
+      )}
+
+      {uploadable.length === 0 && !error && (
+        <div className="mc-surface bg-destructive/10 p-4 text-sm text-destructive">
+          У вас нет права загрузки ни в одну библиотеку. Попросите администратора выдать
+          доступ.
         </div>
       )}
 
@@ -138,8 +167,8 @@ export function UploadPage() {
             onChange={(event) => setLibraryId(event.target.value)}
             className="mc-select"
           >
-            {libraries.length === 0 && <option value="">Нет библиотек</option>}
-            {libraries.map((library) => (
+            {uploadable.length === 0 && <option value="">Нет доступных библиотек</option>}
+            {uploadable.map((library) => (
               <option key={library.id} value={library.id}>
                 {library.name}
                 {library.is_import_target ? " (цель импорта)" : ""}

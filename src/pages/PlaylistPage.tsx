@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Globe2, ListMusic, Lock, Play, Trash2 } from "lucide-react";
+import { ListMusic, Lock, Play, Share2, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api, ApiError, type PlaylistDetail } from "@/api";
 import { useAuth } from "@/auth";
 import { TrackList } from "@/components/TrackList";
+import { PlaylistShareDialog } from "@/components/PlaylistShareDialog";
 import { Button } from "@/components/ui/button";
 import { tracksLabel } from "@/lib/plural";
+import { can, P } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -16,7 +18,7 @@ export function PlaylistPage() {
   const navigate = useNavigate();
   const [detail, setDetail] = useState<PlaylistDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const playTrack = usePlayer((state) => state.playTrack);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -67,24 +69,6 @@ export function PlaylistPage() {
     }
   };
 
-  const togglePublic = async () => {
-    if (!playlistId || !detail) {
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const updated = await api.updatePlaylist(playlistId, {
-        is_public: !detail.playlist.is_public,
-      });
-      setDetail({ ...detail, playlist: updated.playlist });
-      toast(updated.playlist.is_public ? "Плейлист теперь публичный" : "Плейлист скрыт");
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Не удалось изменить доступ");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   if (error) {
     return (
@@ -103,7 +87,9 @@ export function PlaylistPage() {
     );
   }
 
-  const isOwner = detail.playlist.owner === user?.username;
+  const canManage =
+    (detail.permissions & P.PLAYLIST_MANAGE) !== 0 || can(user, P.ADMINISTRATOR);
+  const canEdit = (detail.permissions & P.PLAYLIST_EDIT) !== 0 || canManage;
 
   return (
     <div className="space-y-6">
@@ -146,40 +132,48 @@ export function PlaylistPage() {
                 <Play className="mr-2 h-4 w-4" />
                 Слушать
               </Button>
-              {isOwner && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => void togglePublic()}
-                  disabled={busy}
-                >
-                  {detail.playlist.is_public ? (
-                    <Globe2 className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Lock className="mr-2 h-4 w-4" />
-                  )}
-                  {detail.playlist.is_public ? "Публичный" : "Приватный"}
+              {canManage && (
+                <Button variant="outline" size="lg" onClick={() => setShareOpen(true)}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Поделиться
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-11 w-11 text-muted-foreground hover:text-destructive")}
-                onClick={() => void removePlaylist()}
-                aria-label="Удалить плейлист"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {canManage && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-11 w-11 text-muted-foreground hover:text-destructive")}
+                  onClick={() => void removePlaylist()}
+                  aria-label="Удалить плейлист"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </section>
 
+      {detail.hidden_count > 0 && (
+        <div className="flex items-center gap-2 rounded-xl bg-secondary/50 px-4 py-3 text-xs text-muted-foreground">
+          <Lock className="h-4 w-4" />
+          Скрыто {detail.hidden_count} треков — они из библиотек, к которым у вас нет доступа.
+        </div>
+      )}
+
       <TrackList
         tracks={detail.tracks}
         onPlay={(track, queue) => playTrack(track, queue)}
-        onRemove={(position) => void removeTrack(position)}
+        onRemove={canEdit ? (position) => void removeTrack(position) : undefined}
         onTracksChanged={load}
+      />
+
+      <PlaylistShareDialog
+        playlistId={detail.playlist.id}
+        playlistName={detail.playlist.name}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        onChanged={load}
       />
     </div>
   );
