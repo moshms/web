@@ -11,16 +11,19 @@ type AvailableRole = { id: string; name: string; color: number | null; is_everyo
 type AvailableUser = { id: string; username: string };
 
 const levels = [
-  { key: "view", label: "Слушать", allow: P.PLAYLIST_VIEW },
-  { key: "edit", label: "Редактировать", allow: P.PLAYLIST_VIEW | P.PLAYLIST_EDIT },
+  { key: "deny", label: "Запретить", allow: 0, deny: P.PLAYLIST_VIEW },
+  { key: "view", label: "Слушать", allow: P.PLAYLIST_VIEW, deny: 0 },
+  { key: "edit", label: "Редактировать", allow: P.PLAYLIST_VIEW | P.PLAYLIST_EDIT, deny: 0 },
   {
     key: "manage",
     label: "Управлять",
     allow: P.PLAYLIST_VIEW | P.PLAYLIST_EDIT | P.PLAYLIST_MANAGE,
+    deny: 0,
   },
 ];
 
-function levelLabel(allow: number) {
+function levelLabel(allow: number, deny: number) {
+  if ((deny & P.PLAYLIST_VIEW) !== 0) return "Запрещено";
   if ((allow & P.PLAYLIST_MANAGE) !== 0) return "Управление";
   if ((allow & P.PLAYLIST_EDIT) !== 0) return "Редактирование";
   if ((allow & P.PLAYLIST_VIEW) !== 0) return "Прослушивание";
@@ -128,7 +131,7 @@ export function PlaylistShareDialog({
     try {
       await api.setPlaylistPermission(playlistId, targetType, targetId, {
         allow: preset.allow,
-        deny: 0,
+        deny: preset.deny,
       });
       setTargetId("");
       await load();
@@ -220,7 +223,7 @@ export function PlaylistShareDialog({
                       <p className="truncate text-sm font-medium">{targetName(overwrite)}</p>
                       <p className="text-xs text-muted-foreground">
                         {overwrite.target_type === "role" ? "Роль" : "Пользователь"} ·{" "}
-                        {levelLabel(overwrite.allow)}
+                        {levelLabel(overwrite.allow, overwrite.deny)}
                       </p>
                     </div>
                     <Button
