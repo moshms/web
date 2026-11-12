@@ -1,9 +1,54 @@
 export type Role = "admin" | "uploader" | "listener";
 
+export type RoleRecord = {
+  id: string;
+  name: string;
+  color: number | null;
+  position: number;
+  permissions: number;
+  is_everyone: boolean;
+  member_count: number;
+};
+
+export type LibraryAccess = {
+  id: string;
+  name: string;
+  permissions: number;
+};
+
 export type User = {
   id: string;
   username: string;
   role: Role;
+  roles: RoleRecord[];
+  permissions: number;
+  libraries: LibraryAccess[];
+};
+
+export type PermissionInfo = {
+  bit: number;
+  key: string;
+  label: string;
+  group: string;
+};
+
+export type PermissionOverwrite = {
+  resource_type: "library" | "playlist";
+  resource_id: string;
+  target_type: "role" | "user";
+  target_id: string;
+  allow: number;
+  deny: number;
+};
+
+export type AuditRecord = {
+  id: string;
+  actor: string | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  changes: Record<string, unknown>;
+  created_at: string;
 };
 
 export type Artist = {
@@ -39,6 +84,8 @@ export type Track = {
   file_key: string;
   size: number;
   format: string | null;
+  library_id: string;
+  uploaded_by: string | null;
 };
 
 export type AlbumDetail = Album & {
@@ -63,6 +110,8 @@ export type Playlist = {
 export type PlaylistDetail = {
   playlist: Playlist;
   tracks: Track[];
+  hidden_count: number;
+  permissions: number;
 };
 
 export type Favorites = {
@@ -100,6 +149,7 @@ export type AdminUser = {
   username: string;
   role: Role;
   is_active: boolean;
+  roles: RoleRecord[];
 };
 
 export type SetupStatus = {
@@ -255,6 +305,54 @@ export const api = {
   streamUrl: (trackId: string) => `/api/v1/stream/${trackId}`,
   artworkUrl: (albumId: string) => `/api/v1/artwork/${albumId}`,
 
+  roles: () => request<RoleRecord[]>("/api/v1/roles"),
+  permissionCatalog: () => request<PermissionInfo[]>("/api/v1/permissions"),
+  createRole: (body: { name: string; color?: number | null; permissions: number }) =>
+    post<RoleRecord>("/api/v1/roles", body),
+  updateRole: (
+    id: string,
+    body: { name?: string; color?: number | null; permissions?: number },
+  ) => patch<RoleRecord>(`/api/v1/roles/${id}`, body),
+  deleteRole: (id: string) => remove(`/api/v1/roles/${id}`),
+  reorderRoles: (ids: string[]) => request<void>("/api/v1/roles/order", { method: "PUT", body: JSON.stringify({ ids }) }),
+  assignRole: (userId: string, roleId: string) =>
+    request<void>(`/api/v1/users/${userId}/roles/${roleId}`, { method: "PUT" }),
+  unassignRole: (userId: string, roleId: string) =>
+    remove(`/api/v1/users/${userId}/roles/${roleId}`),
+  availableRoles: () =>
+    request<{ id: string; name: string; color: number | null; is_everyone: boolean }[]>(
+      "/api/v1/roles/available",
+    ),
+  availableUsers: () => request<{ id: string; username: string }[]>("/api/v1/users/available"),
+  auditLog: () => request<AuditRecord[]>("/api/v1/audit-log"),
+  libraryPermissions: (id: string) =>
+    request<PermissionOverwrite[]>(`/api/v1/libraries/${id}/permissions`),
+  setLibraryPermission: (
+    id: string,
+    targetType: "role" | "user",
+    targetId: string,
+    body: { allow: number; deny: number },
+  ) =>
+    request<PermissionOverwrite>(
+      `/api/v1/libraries/${id}/permissions/${targetType}/${targetId}`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+  deleteLibraryPermission: (id: string, targetType: "role" | "user", targetId: string) =>
+    remove(`/api/v1/libraries/${id}/permissions/${targetType}/${targetId}`),
+  playlistPermissions: (id: string) =>
+    request<PermissionOverwrite[]>(`/api/v1/playlists/${id}/permissions`),
+  setPlaylistPermission: (
+    id: string,
+    targetType: "role" | "user",
+    targetId: string,
+    body: { allow: number; deny: number },
+  ) =>
+    request<PermissionOverwrite>(
+      `/api/v1/playlists/${id}/permissions/${targetType}/${targetId}`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+  deletePlaylistPermission: (id: string, targetType: "role" | "user", targetId: string) =>
+    remove(`/api/v1/playlists/${id}/permissions/${targetType}/${targetId}`),
   admin: {
     scan: () => post<LibraryScanResult[]>("/api/v1/admin/scan"),
     storages: () => request<Storage[]>("/api/v1/admin/storages"),
@@ -271,6 +369,7 @@ export const api = {
       storage_id: string;
       root_prefix?: string;
       is_import_target?: boolean;
+      access?: { everyone: boolean; roles: string[]; users: string[] };
     }) => post<Library>("/api/v1/admin/libraries", body),
     deleteLibrary: (id: string) => remove(`/api/v1/admin/libraries/${id}`),
     users: () => request<AdminUser[]>("/api/v1/admin/users"),

@@ -16,15 +16,32 @@ import { SearchPage } from "@/pages/Search";
 import { Setup } from "@/pages/Setup";
 import { TagEditorPage } from "@/pages/TagEditor";
 import { UploadPage } from "@/pages/Upload";
+import { RolesPage } from "@/pages/RolesPage";
+import { can, canAnyLibrary, canManageServer, P } from "@/permissions";
 
 function AdminRoute() {
   const { user } = useAuth();
-  return user?.role === "admin" ? <AdminPage /> : <Navigate to="/" replace />;
+  return canManageServer(user) ? <AdminPage /> : <Navigate to="/" replace />;
+}
+
+function AdminRolesRoute() {
+  const { user } = useAuth();
+  return can(user, P.MANAGE_ROLES) ? <RolesPage /> : <Navigate to="/" replace />;
 }
 
 function AdminTagsRoute() {
   const { user } = useAuth();
-  return user?.role === "admin" ? <TagEditorPage /> : <Navigate to="/" replace />;
+  return canAnyLibrary(user, P.LIBRARY_EDIT_TAGS) ||
+    canAnyLibrary(user, P.LIBRARY_UPLOAD) ? (
+    <TagEditorPage />
+  ) : (
+    <Navigate to="/" replace />
+  );
+}
+
+function UploadRoute() {
+  const { user } = useAuth();
+  return canAnyLibrary(user, P.LIBRARY_UPLOAD) ? <UploadPage /> : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -78,9 +95,10 @@ export default function App() {
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="playlists/:playlistId" element={<PlaylistPage />} />
         <Route path="favorites" element={<FavoritesPage />} />
-        <Route path="upload" element={<UploadPage />} />
+        <Route path="upload" element={<UploadRoute />} />
         <Route path="admin" element={<AdminRoute />} />
         <Route path="admin/tags" element={<AdminTagsRoute />} />
+        <Route path="admin/roles" element={<AdminRolesRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

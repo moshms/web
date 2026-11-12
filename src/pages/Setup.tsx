@@ -58,7 +58,7 @@ export function Setup({ onComplete }: { onComplete: () => void }) {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={12}
             required
             className="mc-field"
           />
@@ -71,7 +71,7 @@ export function Setup({ onComplete }: { onComplete: () => void }) {
             value={confirm}
             onChange={(event) => setConfirm(event.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={12}
             required
             className="mc-field"
           />

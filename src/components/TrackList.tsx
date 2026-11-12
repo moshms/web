@@ -27,6 +27,7 @@ import { AlbumEditDialog } from "@/components/AlbumEditDialog";
 import { Artwork } from "@/components/Artwork";
 import { TrackEditDialog } from "@/components/TrackEditDialog";
 import { Button } from "@/components/ui/button";
+import { canEditTrack as canEditTrackPermission } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -90,7 +91,6 @@ export function TrackList({
   }, [playlists]);
 
   const availablePlaylists = playlists ?? fetchedPlaylists;
-  const canEdit = user?.role === "admin" && Boolean(features?.tag_editor);
 
   const addToPlaylist = async (playlist: Playlist, track: Track) => {
     if (onAddToPlaylist) {
@@ -177,7 +177,7 @@ export function TrackList({
               track={track}
               starred={starred?.has(track.id)}
               playlists={availablePlaylists}
-              canEdit={canEdit}
+              canEdit={Boolean(features?.tag_editor && canEditTrackPermission(user, track))}
               onPlay={() => onPlay(track, tracks)}
               onPlayNext={() => {
                 playNext(track);
@@ -189,9 +189,15 @@ export function TrackList({
               }}
               onToggleStar={onToggleStar ? () => onToggleStar(track) : undefined}
               onAddToPlaylist={(playlist) => void addToPlaylist(playlist, track)}
-              onEditTrack={canEdit ? () => setEditingTrack(track) : undefined}
+              onEditTrack={
+                features?.tag_editor && canEditTrackPermission(user, track)
+                  ? () => setEditingTrack(track)
+                  : undefined
+              }
               onEditAlbum={
-                canEdit && track.album_id ? () => setEditingAlbumId(track.album_id) : undefined
+                features?.tag_editor && canEditTrackPermission(user, track) && track.album_id
+                  ? () => setEditingAlbumId(track.album_id)
+                  : undefined
               }
               onRemove={onRemove ? () => onRemove(index) : undefined}
             />
