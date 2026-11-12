@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ListMusic, Plus, Sparkles } from "lucide-react";
 
 import { api, ApiError, type Playlist } from "@/api";
+import { useAuth } from "@/auth";
+import { can, P } from "@/permissions";
 import { PlaylistCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/toast";
@@ -12,6 +14,8 @@ export function PlaylistsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canCreate = can(user, P.PLAYLIST_CREATE);
 
   const load = () =>
     api
@@ -58,6 +62,7 @@ export function PlaylistsPage() {
         <p className="mt-1 text-sm text-muted-foreground">Личные и публичные подборки</p>
       </div>
 
+      {canCreate && (
       <form
         onSubmit={(event) => void create(event)}
         className="mc-surface flex flex-col gap-2 p-3 sm:flex-row"
@@ -76,6 +81,7 @@ export function PlaylistsPage() {
           Создать
         </Button>
       </form>
+      )}
 
       {error && (
         <div className="mc-surface bg-destructive/10 p-4 text-sm text-destructive">
