@@ -35,7 +35,9 @@ export function AlbumEditDialog({
   const [album, setAlbum] = useState<AlbumDetail | null>(null);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  const [trackArtist, setTrackArtist] = useState("");
   const [year, setYear] = useState("");
+  const [genres, setGenres] = useState("");
   const [artwork, setArtwork] = useState<{ data: string; mime: string } | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,6 +53,8 @@ export function AlbumEditDialog({
     setError(null);
     setArtwork(null);
     setPreview(null);
+    setTrackArtist("");
+    setGenres("");
     api
       .album(albumId)
       .then((loaded) => {
@@ -99,7 +103,16 @@ export function AlbumEditDialog({
         changes: {
           album: title.trim(),
           album_artist: artist.trim(),
+          ...(trackArtist.trim() ? { artist: trackArtist.trim() } : {}),
           ...(year.trim() ? { year: Number(year) } : {}),
+          ...(genres.trim()
+            ? {
+                genres: genres
+                  .split(",")
+                  .map((genre) => genre.trim())
+                  .filter(Boolean),
+              }
+            : {}),
         },
         ...(artwork
           ? { artwork_base64: artwork.data, artwork_mime: artwork.mime }
@@ -212,14 +225,33 @@ export function AlbumEditDialog({
                   />
                 </label>
               </div>
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium">Исполнитель треков</span>
+                <input
+                  value={trackArtist}
+                  onChange={(event) => setTrackArtist(event.target.value)}
+                  placeholder="Не менять"
+                  className="mc-field"
+                />
+              </label>
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium">Жанры</span>
+                <input
+                  value={genres}
+                  onChange={(event) => setGenres(event.target.value)}
+                  placeholder="Через запятую, необязательно"
+                  className="mc-field"
+                />
+              </label>
             </div>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <p className="text-xs text-muted-foreground">
-            Название, album artist, год и обложка будут записаны во все треки альбома. Имена
-            файлов и исполнители треков не меняются.
+            Название, album artist, год, жанры и обложка будут записаны во все треки
+            альбома. «Исполнитель треков» заполняйте, только если нужно заменить
+            исполнителя у всех треков.
           </p>
         </form>
       )}

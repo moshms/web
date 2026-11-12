@@ -15,6 +15,7 @@ import { AlbumEditDialog } from "@/components/AlbumEditDialog";
 import { Artwork } from "@/components/Artwork";
 import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
+import { tracksLabel } from "@/lib/plural";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -184,7 +185,7 @@ export function AlbumPage() {
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {album.album_artist}
-              {album.year > 0 ? ` · ${album.year}` : ""} · {album.track_count} треков ·{" "}
+              {album.year > 0 ? ` · ${album.year}` : ""} · {tracksLabel(album.track_count)} ·{" "}
               {minutes} мин
             </p>
 
@@ -239,6 +240,7 @@ export function AlbumPage() {
         onToggleStar={(track) => void toggleStar(track)}
         playlists={playlists}
         onAddToPlaylist={(playlistId, trackId) => void addToPlaylist(playlistId, trackId)}
+        onTracksChanged={() => void load()}
       />
 
       <AlbumEditDialog

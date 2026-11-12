@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import {
   AudioLines,
   ChevronDown,
+  Disc3,
   Heart,
   ListMusic,
   Maximize2,
@@ -27,6 +28,7 @@ import { Link } from "react-router-dom";
 import { api, type Features, type Track } from "@/api";
 import { useAuth } from "@/auth";
 import { AlbumEditDialog } from "@/components/AlbumEditDialog";
+import { TrackEditDialog } from "@/components/TrackEditDialog";
 import { Artwork } from "@/components/Artwork";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -117,6 +119,7 @@ export function Player() {
   const [expanded, setExpanded] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [trackEditOpen, setTrackEditOpen] = useState(false);
 
   const canEditAlbum = user?.role === "admin" && Boolean(features?.tag_editor);
   const isStarred = track ? starred.has(track.id) : false;
@@ -524,10 +527,28 @@ export function Player() {
                   Свернуть
                 </button>
                 <div className="flex items-center gap-1">
-                  {canEditAlbum && track?.album_id && (
-                    <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                  {canEditAlbum && track && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTrackEditOpen(true)}
+                      aria-label="Редактировать трек"
+                      title="Редактировать трек"
+                    >
                       <Pencil className="mr-2 h-4 w-4" />
-                      Редактировать альбом
+                      <span className="hidden sm:inline">Редактировать трек</span>
+                    </Button>
+                  )}
+                  {canEditAlbum && track?.album_id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditOpen(true)}
+                      aria-label="Редактировать альбом"
+                      title="Редактировать альбом"
+                    >
+                      <Disc3 className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">Редактировать альбом</span>
                     </Button>
                   )}
                   <Button
@@ -742,6 +763,13 @@ export function Player() {
         open={editOpen}
         features={features}
         onClose={() => setEditOpen(false)}
+      />
+
+      <TrackEditDialog
+        track={track}
+        open={trackEditOpen}
+        features={features}
+        onClose={() => setTrackEditOpen(false)}
       />
     </>
   );

@@ -3,8 +3,9 @@ import { Heart, Loader2, Play } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { api, ApiError, type Album, type Artist, type Track } from "@/api";
-import { AlbumCard } from "@/pages/Library";
+import { AlbumCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
+import { albumsLabel, tracksLabel } from "@/lib/plural";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ export function ArtistPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [starred, setStarred] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyAlbum, setBusyAlbum] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const playTrack = usePlayer((state) => state.playTrack);
   const { toast } = useToast();
@@ -64,6 +66,20 @@ export function ArtistPage() {
       toast("Не удалось запустить исполнителя", "error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const playAlbum = async (albumId: string) => {
+    setBusyAlbum(albumId);
+    try {
+      const detail = await api.album(albumId);
+      if (detail.tracks.length > 0) {
+        playTrack(detail.tracks[0], detail.tracks);
+      }
+    } catch {
+      toast("Не удалось запустить альбом", "error");
+    } finally {
+      setBusyAlbum(null);
     }
   };
 
@@ -130,7 +146,7 @@ export function ArtistPage() {
               {artist.name}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {albums.length} альбомов · {artist.track_count} треков
+              {albumsLabel(albums.length)} · {tracksLabel(artist.track_count)}
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <Button
@@ -165,7 +181,12 @@ export function ArtistPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           {albums.map((album) => (
-            <AlbumCard key={album.id} album={album} />
+            <AlbumCard
+              key={album.id}
+              album={album}
+              busy={busyAlbum === album.id}
+              onPlay={() => void playAlbum(album.id)}
+            />
           ))}
         </div>
       )}

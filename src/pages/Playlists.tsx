@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ListMusic, Plus, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
 
 import { api, ApiError, type Playlist } from "@/api";
+import { PlaylistCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/toast";
 
@@ -98,25 +98,7 @@ export function PlaylistsPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           {playlists.map((playlist) => (
-            <Link
-              key={playlist.id}
-              to={`/playlists/${playlist.id}`}
-              className="group rounded-2xl p-2 transition hover:-translate-y-0.5 hover:bg-accent/40"
-            >
-              <div className="relative mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/30 via-primary/10 to-secondary">
-                <ListMusic className="h-10 w-10 text-primary/70" />
-                <span className="absolute bottom-2 right-2 rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur">
-                  {playlist.song_count} треков
-                </span>
-              </div>
-              <p className="truncate text-sm font-medium group-hover:text-primary">
-                {playlist.name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {playlist.owner}
-                {playlist.is_public ? " · публичный" : " · приватный"}
-              </p>
-            </Link>
+            <PlaylistCard key={playlist.id} playlist={playlist} />
           ))}
         </div>
       )}
