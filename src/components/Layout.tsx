@@ -94,7 +94,7 @@ export function Layout() {
                   cn(
                     "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                     isActive
-                      ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/15"
+                      ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
                   )
                 }
@@ -116,7 +116,7 @@ export function Layout() {
                       cn(
                         "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                         isActive
-                          ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/15"
+                          ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
                       )
                     }
@@ -132,7 +132,7 @@ export function Layout() {
                       cn(
                         "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                         isActive
-                          ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/15"
+                          ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
                       )
                     }
@@ -146,7 +146,7 @@ export function Layout() {
           </nav>
 
           <div className="mt-auto space-y-2">
-            <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
+            <div className="rounded-2xl bg-background/60 p-3">
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-orange-600 text-sm font-semibold text-primary-foreground">
                   {user?.username.slice(0, 1).toUpperCase()}

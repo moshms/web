@@ -123,7 +123,7 @@ export function SearchPage() {
       </form>
 
       {error && (
-        <div className="mc-surface border-destructive/30 p-4 text-sm text-destructive">
+        <div className="mc-surface bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
       )}

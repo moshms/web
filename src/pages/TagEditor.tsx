@@ -193,7 +193,7 @@ export function TagEditorPage() {
       </form>
 
       {results.length > 0 && (
-        <div className="divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50">
+        <div className="divide-y divide-border/40 rounded-2xl bg-card/50">
           {results.map((track) => (
             <label
               key={track.id}
@@ -280,7 +280,7 @@ export function TagEditorPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Последние правки
         </h2>
-        <div className="divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50 text-sm">
+        <div className="divide-y divide-border/40 rounded-2xl bg-card/50 text-sm">
           {edits.map((edit) => (
             <div key={edit.id} className="px-3 py-2">
               <p className="font-medium">

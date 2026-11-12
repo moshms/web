@@ -18,14 +18,14 @@ export function AuthShell({
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_10%,hsl(24_95%_50%/0.55),transparent_55%),radial-gradient(ellipse_at_80%_80%,hsl(15_90%_45%/0.35),transparent_50%)]" />
         <div className="absolute -left-24 top-1/3 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
         <div className="relative flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 backdrop-blur">
             <Music2 className="h-5 w-5" />
           </span>
           <span className="text-lg font-semibold tracking-tight">Music Cloud</span>
         </div>
 
         <div className="relative mt-auto max-w-lg">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 ring-1 ring-white/15">
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">
             <Sparkles className="h-3.5 w-3.5" />
             Ваша музыка, ваш сервер
           </p>
@@ -44,7 +44,7 @@ export function AuthShell({
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-2xl bg-white/5 p-3 text-xs text-white/75 ring-1 ring-white/10"
+                className="rounded-2xl bg-white/5 p-3 text-xs text-white/75"
               >
                 <item.icon className="mb-2 h-4 w-4 text-primary" />
                 {item.label}

@@ -172,7 +172,7 @@ export function TrackEditDialog({
     >
       <form id="track-edit-form" onSubmit={(event) => void submit(event)} className="space-y-4">
         {!available && (
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             Редактор недоступен: воркер не запущен. Изменения можно будет сохранить после
             включения профиля worker.
           </p>
