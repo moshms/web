@@ -8,7 +8,8 @@ import {
   Settings,
   Upload,
 } from "lucide-react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/auth";
 import { Player } from "@/components/Player";
@@ -31,8 +32,26 @@ const roleLabels = {
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
   const canUpload = user?.role === "admin" || user?.role === "uploader";
   const isAdmin = user?.role === "admin";
+
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+    const section = location.pathname.split("/")[1];
+    const labels: Record<string, string> = {
+      "": "Библиотека",
+      search: "Поиск",
+      playlists: "Плейлисты",
+      favorites: "Избранное",
+      artists: "Исполнитель",
+      albums: "Альбом",
+      upload: "Загрузка",
+      admin: "Админка",
+    };
+    document.title = section ? `${labels[section] ?? "Music Cloud"} · Music Cloud` : "Music Cloud";
+  }, [location.pathname]);
 
   const signOut = async () => {
     await logout();
@@ -200,7 +219,7 @@ export function Layout() {
             </div>
           </header>
 
-          <main className="relative min-h-0 flex-1 overflow-y-auto">
+          <main ref={mainRef} className="relative min-h-0 flex-1 overflow-y-auto">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/[0.07] via-transparent to-transparent" />
             <div className="relative mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-10">
               <Outlet />

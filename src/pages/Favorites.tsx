@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { Heart, Loader2, Music2, Play } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Heart } from "lucide-react";
 
 import { api, ApiError, type Favorites as FavoritesData, type Track } from "@/api";
-import { Artwork } from "@/components/Artwork";
+import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { TrackList } from "@/components/TrackList";
-import { Button } from "@/components/ui/button";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 
@@ -16,7 +14,7 @@ export function FavoritesPage() {
   const playTrack = usePlayer((state) => state.playTrack);
   const { toast } = useToast();
 
-  useEffect(() => {
+  const load = () => {
     api
       .favorites()
       .then(setFavorites)
@@ -25,6 +23,10 @@ export function FavoritesPage() {
           caught instanceof ApiError ? caught.message : "Не удалось загрузить избранное",
         ),
       );
+  };
+
+  useEffect(() => {
+    load();
   }, []);
 
   const toggleStar = async (track: Track) => {
@@ -50,6 +52,22 @@ export function FavoritesPage() {
       }
     } catch {
       toast("Не удалось запустить альбом", "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const playArtist = async (artistId: string) => {
+    setBusyId(artistId);
+    try {
+      const artistAlbums = await api.albums(artistId);
+      const details = await Promise.all(artistAlbums.map((album) => api.album(album.id)));
+      const tracks = details.flatMap((detail) => detail.tracks);
+      if (tracks.length > 0) {
+        playTrack(tracks[0], tracks);
+      }
+    } catch {
+      toast("Не удалось запустить исполнителя", "error");
     } finally {
       setBusyId(null);
     }
@@ -115,6 +133,7 @@ export function FavoritesPage() {
             onPlay={(track, queue) => playTrack(track, queue)}
             starred={new Set(favorites.tracks.map((track) => track.id))}
             onToggleStar={(track) => void toggleStar(track)}
+            onTracksChanged={load}
           />
         </section>
       )}
@@ -126,34 +145,12 @@ export function FavoritesPage() {
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {favorites.albums.map((album) => (
-              <div key={album.id} className="group relative">
-                <Link
-                  to={`/albums/${album.id}`}
-                  className="block rounded-2xl p-2 transition hover:-translate-y-0.5 hover:bg-accent/40"
-                >
-                  <Artwork
-                    albumId={album.artwork_id ? album.id : null}
-                    title={album.title}
-                    className="mb-3 aspect-square w-full rounded-xl shadow-sm"
-                  />
-                  <p className="truncate text-sm font-medium group-hover:text-primary">
-                    {album.title}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{album.album_artist}</p>
-                </Link>
-                <Button
-                  size="icon"
-                  className="absolute bottom-14 right-4 h-10 w-10 rounded-full opacity-0 shadow-lg transition group-hover:opacity-100"
-                  onClick={() => void playAlbum(album.id)}
-                  aria-label={`Играть ${album.title}`}
-                >
-                  {busyId === album.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="ml-0.5 h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+              <AlbumCard
+                key={album.id}
+                album={album}
+                busy={busyId === album.id}
+                onPlay={() => void playAlbum(album.id)}
+              />
             ))}
           </div>
         </section>
@@ -165,27 +162,17 @@ export function FavoritesPage() {
             Исполнители{" "}
             <span className="text-muted-foreground/60">{favorites.artists.length}</span>
           </h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {favorites.artists.map((artist) => (
-              <Link
+              <ArtistCard
                 key={artist.id}
-                to={`/artists/${artist.id}`}
-                className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/60 px-4 py-2 text-sm transition hover:border-primary/40 hover:text-primary"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
-                  {artist.name.slice(0, 1).toUpperCase()}
-                </span>
-                {artist.name}
-              </Link>
+                artist={artist}
+                busy={busyId === artist.id}
+                onPlay={() => void playArtist(artist.id)}
+              />
             ))}
           </div>
         </section>
-      )}
-
-      {!hasFavorites && (
-        <div className="flex justify-center text-muted-foreground/50">
-          <Music2 className="h-10 w-10" />
-        </div>
       )}
     </div>
   );

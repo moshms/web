@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Library, Loader2, Play, Search, Upload } from "lucide-react";
+import { Library, Search, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { api, ApiError, type Album, type Artist } from "@/api";
 import { useAuth } from "@/auth";
-import { Artwork } from "@/components/Artwork";
+import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
+import { artistsLabel, albumsLabel, tracksLabel } from "@/lib/plural";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -109,7 +110,7 @@ export function LibraryPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {artists.length > 0
-              ? `${artists.length} исполнителей · ${albums.length} альбомов · ${trackCount} треков`
+              ? `${artistsLabel(artists.length)} · ${albumsLabel(albums.length)} · ${tracksLabel(trackCount)}`
               : "Исполнители и альбомы"}
           </p>
         </div>
@@ -200,34 +201,12 @@ export function LibraryPage() {
       {!loading && !error && tab === "artists" && filteredArtists.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           {filteredArtists.map((artist) => (
-            <div key={artist.id} className="group relative">
-              <Link
-                to={`/artists/${artist.id}`}
-                className="mc-surface block rounded-2xl p-3 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg"
-              >
-                <div className="relative mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/25 via-accent to-secondary">
-                  <span className="text-4xl font-semibold text-primary/70">
-                    {artist.name.slice(0, 1).toUpperCase()}
-                  </span>
-                </div>
-                <p className="truncate font-medium group-hover:text-primary">{artist.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {artist.album_count} альбомов · {artist.track_count} треков
-                </p>
-              </Link>
-              <Button
-                size="icon"
-                className="absolute bottom-14 right-5 h-10 w-10 rounded-full opacity-0 shadow-lg transition group-hover:opacity-100"
-                onClick={() => void playArtist(artist)}
-                aria-label={`Играть ${artist.name}`}
-              >
-                {busyId === artist.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="ml-0.5 h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            <ArtistCard
+              key={artist.id}
+              artist={artist}
+              busy={busyId === artist.id}
+              onPlay={() => void playArtist(artist)}
+            />
           ))}
         </div>
       )}
@@ -254,42 +233,3 @@ export function LibraryPage() {
   );
 }
 
-export function AlbumCard({
-  album,
-  busy,
-  onPlay,
-}: {
-  album: Album;
-  busy?: boolean;
-  onPlay?: () => void;
-}) {
-  return (
-    <div className="group relative">
-      <Link
-        to={`/albums/${album.id}`}
-        className="block rounded-2xl p-2 transition hover:-translate-y-0.5 hover:bg-accent/40"
-      >
-        <Artwork
-          albumId={album.artwork_id ? album.id : null}
-          title={album.title}
-          className="mb-3 aspect-square w-full rounded-xl shadow-sm"
-        />
-        <p className="truncate text-sm font-medium group-hover:text-primary">{album.title}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {album.album_artist}
-          {album.year > 0 ? ` · ${album.year}` : ""}
-        </p>
-      </Link>
-      {onPlay && (
-        <Button
-          size="icon"
-          className="absolute bottom-14 right-4 h-10 w-10 rounded-full opacity-0 shadow-lg transition group-hover:opacity-100 focus-visible:opacity-100"
-          onClick={onPlay}
-          aria-label={`Играть ${album.title}`}
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="ml-0.5 h-4 w-4" />}
-        </Button>
-      )}
-    </div>
-  );
-}

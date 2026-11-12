@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Music2, Search as SearchIcon, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Loader2, Music2, Search as SearchIcon, Sparkles, X } from "lucide-react";
 
-import { api, ApiError, type SearchResults } from "@/api";
+import { api, ApiError, type Album, type Artist, type SearchResults } from "@/api";
+import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { TrackList } from "@/components/TrackList";
 import { usePlayer } from "@/player";
 
@@ -13,6 +13,7 @@ export function SearchPage() {
   const [results, setResults] = useState<SearchResults>(emptyResults);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const playTrack = usePlayer((state) => state.playTrack);
 
   useEffect(() => {
@@ -42,8 +43,46 @@ export function SearchPage() {
   const hasResults =
     results.artists.length > 0 || results.albums.length > 0 || results.tracks.length > 0;
 
+  const playAlbum = async (album: Album) => {
+    setBusyId(album.id);
+    try {
+      const detail = await api.album(album.id);
+      if (detail.tracks.length > 0) {
+        playTrack(detail.tracks[0], detail.tracks);
+      }
+    } catch {
+      setError("Не удалось запустить альбом");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const playArtist = async (artist: Artist) => {
+    setBusyId(artist.id);
+    try {
+      const artistAlbums = await api.albums(artist.id);
+      const details = await Promise.all(artistAlbums.map((album) => api.album(album.id)));
+      const tracks = details.flatMap((detail) => detail.tracks);
+      if (tracks.length > 0) {
+        playTrack(tracks[0], tracks);
+      }
+    } catch {
+      setError("Не удалось запустить исполнителя");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
+  };
+
+  const refresh = () => {
+    const value = query.trim();
+    if (!value) {
+      return;
+    }
+    api.search(value).then(setResults).catch(() => undefined);
   };
 
   return (
@@ -69,9 +108,18 @@ export function SearchPage() {
           autoFocus
           className="mc-field h-12 rounded-2xl pl-12 pr-12 text-base"
         />
-        {loading && (
+        {loading ? (
           <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
-        )}
+        ) : query ? (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            aria-label="Очистить поиск"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </form>
 
       {error && (
@@ -108,18 +156,14 @@ export function SearchPage() {
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Исполнители
           </h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {results.artists.map((artist) => (
-              <Link
+              <ArtistCard
                 key={artist.id}
-                to={`/artists/${artist.id}`}
-                className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/60 px-4 py-2 text-sm transition hover:border-primary/40 hover:text-primary"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
-                  {artist.name.slice(0, 1).toUpperCase()}
-                </span>
-                {artist.name}
-              </Link>
+                artist={artist}
+                busy={busyId === artist.id}
+                onPlay={() => void playArtist(artist)}
+              />
             ))}
           </div>
         </section>
@@ -130,31 +174,14 @@ export function SearchPage() {
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Альбомы
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {results.albums.map((album) => (
-              <Link
+              <AlbumCard
                 key={album.id}
-                to={`/albums/${album.id}`}
-                className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card/50 p-2 transition hover:border-primary/30 hover:bg-accent/40"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary/25 via-accent to-secondary text-primary/70">
-                  {album.artwork_id ? (
-                    <img
-                      src={api.artworkUrl(album.id)}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <Music2 className="h-5 w-5" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium group-hover:text-primary">
-                    {album.title}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{album.album_artist}</p>
-                </div>
-              </Link>
+                album={album}
+                busy={busyId === album.id}
+                onPlay={() => void playAlbum(album)}
+              />
             ))}
           </div>
         </section>
@@ -168,6 +195,7 @@ export function SearchPage() {
           <TrackList
             tracks={results.tracks}
             onPlay={(track, queue) => playTrack(track, queue)}
+            onTracksChanged={refresh}
           />
         </section>
       )}

@@ -6,6 +6,7 @@ import { api, ApiError, type PlaylistDetail } from "@/api";
 import { useAuth } from "@/auth";
 import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
+import { tracksLabel } from "@/lib/plural";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -127,7 +128,7 @@ export function PlaylistPage() {
               {detail.playlist.name}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {detail.playlist.owner} · {detail.playlist.song_count} треков ·{" "}
+              {detail.playlist.owner} · {tracksLabel(detail.playlist.song_count)} ·{" "}
               {detail.playlist.is_public ? "публичный" : "приватный"}
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -178,6 +179,7 @@ export function PlaylistPage() {
         tracks={detail.tracks}
         onPlay={(track, queue) => playTrack(track, queue)}
         onRemove={(position) => void removeTrack(position)}
+        onTracksChanged={load}
       />
     </div>
   );
