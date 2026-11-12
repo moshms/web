@@ -31,35 +31,41 @@ export function MediaCard({
 }: MediaCardProps) {
   return (
     <div className={cn("group relative min-w-0", className)}>
-      <Link
-        to={to}
-        className="block rounded-2xl border border-border/60 bg-card/50 p-2 transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/30 hover:shadow-lg"
-      >
-        <div className="relative mb-3 aspect-square overflow-hidden rounded-xl">
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted shadow-sm transition-shadow duration-300 group-hover:shadow-2xl group-hover:shadow-black/15 dark:group-hover:shadow-black/50">
+        <div className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.04]">
           {artwork}
-          {badge && (
-            <span className="absolute bottom-2 right-2 rounded-full bg-background/75 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur">
-              {badge}
-            </span>
-          )}
         </div>
-        <p className="truncate text-sm font-medium group-hover:text-primary">{title}</p>
-        {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <Link to={to} className="absolute inset-0 z-10" aria-label={`Открыть ${title}`} />
+        {badge && (
+          <span className="pointer-events-none absolute bottom-3 left-3 z-20 rounded-full bg-background/80 px-2.5 py-1 text-[10px] font-medium text-foreground shadow-sm backdrop-blur">
+            {badge}
+          </span>
+        )}
+        {onPlay && (
+          <Button
+            size="icon"
+            className="absolute bottom-3 right-3 z-20 h-10 w-10 rounded-full opacity-100 shadow-lg transition-all duration-300 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:focus-visible:translate-y-0 sm:focus-visible:opacity-100"
+            onClick={onPlay}
+            aria-label={`Играть ${title}`}
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="ml-0.5 h-4 w-4" />
+            )}
+          </Button>
+        )}
+      </div>
+
+      <Link to={to} className="block px-1 pt-3">
+        <p className="truncate text-sm font-medium transition-colors group-hover:text-primary">
+          {title}
+        </p>
+        {subtitle && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
+        )}
       </Link>
-      {onPlay && (
-        <Button
-          size="icon"
-          className="absolute bottom-14 right-4 h-10 w-10 rounded-full opacity-100 shadow-lg transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-          onClick={onPlay}
-          aria-label={`Играть ${title}`}
-        >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="ml-0.5 h-4 w-4" />
-          )}
-        </Button>
-      )}
     </div>
   );
 }
