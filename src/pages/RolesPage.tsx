@@ -194,12 +194,12 @@ export function RolesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Управление
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Роли</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Права как в Discord: роли, участники и переопределения на библиотеках и плейлистах.
+            Гибкие роли, участники и переопределения на библиотеках и плейлистах.
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
@@ -222,9 +222,9 @@ export function RolesPage() {
               type="button"
               onClick={() => setSelectedId(role.id)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition",
+                "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition",
                 role.id === selectedId
-                  ? "bg-primary/10 ring-1 ring-inset ring-primary/15"
+                  ? "bg-muted font-medium"
                   : "hover:bg-accent/60",
               )}
             >
@@ -255,12 +255,12 @@ export function RolesPage() {
                   />
                   <h2 className="text-lg font-semibold">{selected.name}</h2>
                   {selected.is_everyone && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground">
                       @everyone
                     </span>
                   )}
                 </div>
-                {!selected.is_everyone && (
+                {!selected.is_everyone && (selected.permissions & P.ADMINISTRATOR) === 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -281,7 +281,7 @@ export function RolesPage() {
                   className={cn(
                     "rounded-full px-3.5 py-1.5 text-xs font-medium transition",
                     tab === "permissions"
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-foreground text-background"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -294,7 +294,7 @@ export function RolesPage() {
                     className={cn(
                       "rounded-full px-3.5 py-1.5 text-xs font-medium transition",
                       tab === "members"
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -347,8 +347,8 @@ export function RolesPage() {
                               disabled={disabled}
                               onClick={() => toggleBit(permission.bit)}
                               className={cn(
-                                "flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
-                                checked ? "bg-primary/10" : "bg-card/40 hover:bg-accent/50",
+                                "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition",
+                                checked ? "bg-muted" : "bg-card hover:bg-muted/50",
                                 disabled && "cursor-not-allowed opacity-50",
                               )}
                             >
@@ -391,7 +391,7 @@ export function RolesPage() {
                     return (
                       <label
                         key={member.id}
-                        className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition hover:bg-accent/50"
+                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 transition hover:bg-accent/50"
                       >
                         <input
                           type="checkbox"
@@ -402,7 +402,7 @@ export function RolesPage() {
                           disabled={busy}
                           className="h-4 w-4 accent-primary"
                         />
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
                           {member.username.slice(0, 1).toUpperCase()}
                         </span>
                         <span className="min-w-0 flex-1">

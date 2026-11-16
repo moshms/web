@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { RefreshCw, ShieldCheck, Tags, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -6,6 +7,7 @@ import {
   api,
   ApiError,
   type AdminUser,
+  type AuditRecord,
   type Features,
   type JobRecord,
   type Library,
@@ -16,9 +18,26 @@ import {
 import { useAuth } from "@/auth";
 import { LibraryAccessDialog } from "@/components/LibraryAccessDialog";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusDot } from "@/components/ui/badge";
+import { Tabs } from "@/components/ui/tabs";
 import { can, canAnyLibrary, P } from "@/permissions";
 
 const inputClass = "mc-field";
+
+const jobKindLabels: Record<string, string> = {
+  writeback: "Запись тегов",
+  import: "Импорт файла",
+  scan: "Скан",
+};
+
+const jobStatusLabels: Record<string, string> = {
+  pending: "ожидает",
+  running: "выполняется",
+  done: "готово",
+  failed: "ошибка",
+  needs_review: "нужна проверка",
+};
 
 function Section({ show, children }: { show: boolean; children: ReactNode }) {
   if (!show) return null;
@@ -27,11 +46,14 @@ function Section({ show, children }: { show: boolean; children: ReactNode }) {
 
 export function AdminPage() {
   const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") ?? "overview";
   const canScans = can(user, P.RUN_SCANS);
   const canStorages = can(user, P.MANAGE_STORAGES);
   const canLibraries = can(user, P.MANAGE_LIBRARIES);
   const canUsers = can(user, P.MANAGE_USERS);
   const canRoles = can(user, P.MANAGE_ROLES);
+  const canAudit = can(user, P.VIEW_AUDIT_LOG);
   const canEditAny =
     canAnyLibrary(user, P.LIBRARY_EDIT_TAGS) || canAnyLibrary(user, P.LIBRARY_UPLOAD);
   const [features, setFeatures] = useState<Features | null>(null);
@@ -39,6 +61,7 @@ export function AdminPage() {
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [jobs, setJobs] = useState<JobRecord[]>([]);
+  const [audit, setAudit] = useState<AuditRecord[]>([]);
   const [scanResults, setScanResults] = useState<LibraryScanResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,6 +106,9 @@ export function AdminPage() {
     }
     if (canUsers) {
       tasks.push(api.admin.users().then(setUsers));
+    }
+    if (canAudit) {
+      tasks.push(api.auditLog().then(setAudit));
     }
     await Promise.all(tasks);
   };
@@ -241,56 +267,82 @@ export function AdminPage() {
     }
   };
 
+  const tabs = [
+    { value: "overview", label: "Обзор" },
+    ...(canLibraries ? [{ value: "libraries", label: "Библиотеки" }] : []),
+    ...(canStorages ? [{ value: "storages", label: "Хранилища" }] : []),
+    ...(canUsers ? [{ value: "users", label: "Пользователи" }] : []),
+    ...(canScans ? [{ value: "jobs", label: "Задания" }] : []),
+    ...(canAudit ? [{ value: "audit", label: "Журнал" }] : []),
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Управление</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Админка</h1>
-          <p className="text-sm text-muted-foreground">Библиотеки, хранилища и пользователи</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canRoles && (
-            <Link
-              to="/admin/roles"
-              className="inline-flex h-9 items-center rounded-xl bg-secondary/60 px-3 text-sm hover:bg-secondary"
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              Роли
-            </Link>
-          )}
-          {features?.worker && canEditAny && (
-            <Link
-              to="/admin/tags"
-              className="inline-flex h-9 items-center rounded-xl bg-secondary/60 px-3 text-sm hover:bg-secondary"
-            >
-              <Tags className="mr-2 h-4 w-4" />
-              Редактор тегов
-            </Link>
-          )}
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Управление"
+        description="Библиотеки, хранилища, пользователи и фоновые задания."
+        actions={
+          <>
+            {canRoles && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/roles">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Роли
+                </Link>
+              </Button>
+            )}
+            {features?.worker && canEditAny && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/tags">
+                  <Tags className="mr-2 h-4 w-4" />
+                  Редактор тегов
+                </Link>
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <Tabs
+        items={tabs}
+        value={tabs.some((item) => item.value === tab) ? tab : "overview"}
+        onChange={(next) => setParams({ tab: next })}
+      />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {features && (
-        <div className="flex flex-wrap gap-2 text-xs">
-          {Object.entries(features).map(([name, enabled]) => (
-            <span
-              key={name}
-              className={`rounded-full px-2.5 py-1 ${
-                enabled
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "bg-muted/60 text-muted-foreground"
-              }`}
-            >
-              {name}: {enabled ? "on" : "off"}
-            </span>
+      <Section show={tab === "overview"}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Библиотеки", libraries.length],
+            ["Хранилища", storages.length],
+            ["Пользователи", users.length],
+            ["Задания", jobs.length],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-md border border-border p-4">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+            </div>
           ))}
         </div>
-      )}
+        {features && (
+          <div className="flex flex-wrap gap-3 text-xs">
+            {[
+              ["worker", "Воркер"],
+              ["transcoder", "Транскодер"],
+              ["tag_editor", "Редактор тегов"],
+              ["monitoring", "Метрики"],
+            ].map(([key, label]) => (
+              <span key={key} className="inline-flex items-center gap-2 rounded-md border border-border px-2.5 py-1 text-muted-foreground">
+                <StatusDot active={Boolean(features[key as keyof Features])} />
+                {label}: {features[key as keyof Features] ? "работает" : "выключен"}
+              </span>
+            ))}
+          </div>
+        )}
+      </Section>
 
-      <Section show={canScans}>
+      <Section show={tab === "overview" && canScans}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-semibold">Сканирование</h2>
@@ -344,12 +396,12 @@ export function AdminPage() {
         )}
       </Section>
 
-      <Section show={canScans}>
+      <Section show={tab === "jobs" && canScans}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-semibold">Импорт</h2>
+            <h2 className="font-semibold">Задания</h2>
             <p className="text-xs text-muted-foreground">
-              Задания воркера: раскладка загруженных файлов по шаблону
+              Фоновые задания: импорт, запись тегов и сканы.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void load().catch(showError)}>
@@ -361,9 +413,9 @@ export function AdminPage() {
             <div key={job.id} className="flex flex-wrap items-center gap-3 py-2">
               <div className="min-w-0 flex-1">
                 <p className="font-medium">
-                  {job.kind}{" "}
+                  {jobKindLabels[job.kind] ?? job.kind}{" "}
                   <span className="text-xs text-muted-foreground">
-                    {job.status} · {job.attempts}/{job.max_attempts}
+                    {jobStatusLabels[job.status] ?? job.status} · попытки {job.attempts}/{job.max_attempts}
                   </span>
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -386,7 +438,7 @@ export function AdminPage() {
         </div>
       </Section>
 
-      <Section show={canStorages}>
+      <Section show={tab === "storages" && canStorages}>
         <h2 className="font-semibold">Хранилища</h2>
         <div className="divide-y text-sm">
           {storages.map((storage) => (
@@ -502,7 +554,7 @@ export function AdminPage() {
         </form>
       </Section>
 
-      <Section show={canLibraries}>
+      <Section show={tab === "libraries" && canLibraries}>
         <h2 className="font-semibold">Библиотеки</h2>
         <div className="divide-y text-sm">
           {libraries.map((library) => (
@@ -510,7 +562,8 @@ export function AdminPage() {
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{library.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  storage {library.storage_id} · prefix {library.root_prefix || "—"}
+                  {storages.find((storage) => storage.id === library.storage_id)?.name ?? "хранилище"}
+                  {library.root_prefix ? ` · ${library.root_prefix}` : ""}
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setAccessLibrary(library)}>
@@ -574,7 +627,7 @@ export function AdminPage() {
         </form>
       </Section>
 
-      <Section show={canUsers}>
+      <Section show={tab === "users" && canUsers}>
         <h2 className="font-semibold">Пользователи</h2>
         <div className="divide-y text-sm">
           {users.map((user) => (
@@ -655,6 +708,27 @@ export function AdminPage() {
             Добавить пользователя
           </Button>
         </form>
+      </Section>
+
+      <Section show={tab === "audit" && canAudit}>
+        <h2 className="font-semibold">Журнал изменений</h2>
+        {audit.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Записей пока нет.</p>
+        ) : (
+          <div className="divide-y divide-border text-sm">
+            {audit.map((entry) => (
+              <div key={entry.id} className="flex flex-wrap items-center gap-2 py-2">
+                <span className="font-medium">{entry.action}</span>
+                <span className="text-xs text-muted-foreground">
+                  {entry.actor ?? "система"} · {entry.target_type}
+                </span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {new Date(entry.created_at).toLocaleString("ru-RU")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
 
       <LibraryAccessDialog

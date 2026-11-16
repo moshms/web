@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Heart, Loader2, Play } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Heart, Play, Shuffle } from "lucide-react";
+import { useParams } from "react-router-dom";
 
 import { api, ApiError, type Album, type Artist, type Track } from "@/api";
+import { Artwork } from "@/components/Artwork";
+import { EntityHeader } from "@/components/EntityHeader";
 import { AlbumCard } from "@/components/MediaCard";
+import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
-import { albumsLabel, tracksLabel } from "@/lib/plural";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
@@ -14,8 +17,8 @@ export function ArtistPage() {
   const { artistId } = useParams<{ artistId: string }>();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [starred, setStarred] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [busyAlbum, setBusyAlbum] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const playTrack = usePlayer((state) => state.playTrack);
@@ -25,7 +28,6 @@ export function ArtistPage() {
     if (!artistId) {
       return;
     }
-
     try {
       const [artists, loadedAlbums, favorites] = await Promise.all([
         api.artists(),
@@ -35,10 +37,11 @@ export function ArtistPage() {
       setArtist(artists.find((item) => item.id === artistId) ?? null);
       setAlbums(loadedAlbums);
       setStarred(favorites.artists.some((item) => item.id === artistId));
+
+      const details = await Promise.all(loadedAlbums.map((album) => api.album(album.id)));
+      setTracks(details.flatMap((detail) => detail.tracks));
     } catch (caught) {
-      setError(
-        caught instanceof ApiError ? caught.message : "Не удалось загрузить исполнителя",
-      );
+      setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить исполнителя");
     }
   }, [artistId]);
 
@@ -46,33 +49,18 @@ export function ArtistPage() {
     void load();
   }, [load]);
 
-  const loadTracks = async () => {
-    if (!artistId) {
-      return [] as Track[];
+  const playAll = (shuffle = false) => {
+    if (tracks.length === 0) {
+      return;
     }
-    const artistAlbums = await api.albums(artistId);
-    const details = await Promise.all(artistAlbums.map((album) => api.album(album.id)));
-    return details.flatMap((detail) => detail.tracks);
+    const queue = shuffle ? [...tracks].sort(() => Math.random() - 0.5) : tracks;
+    playTrack(queue[0], queue);
   };
 
-  const playAll = async () => {
-    setBusy(true);
+  const playAlbum = async (album: Album) => {
+    setBusyAlbum(album.id);
     try {
-      const tracks = await loadTracks();
-      if (tracks.length > 0) {
-        playTrack(tracks[0], tracks);
-      }
-    } catch {
-      toast("Не удалось запустить исполнителя", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const playAlbum = async (albumId: string) => {
-    setBusyAlbum(albumId);
-    try {
-      const detail = await api.album(albumId);
+      const detail = await api.album(album.id);
       if (detail.tracks.length > 0) {
         playTrack(detail.tracks[0], detail.tracks);
       }
@@ -87,7 +75,6 @@ export function ArtistPage() {
     if (!artist) {
       return;
     }
-
     const nextStarred = !starred;
     setStarred(nextStarred);
     try {
@@ -103,91 +90,107 @@ export function ArtistPage() {
   };
 
   if (error) {
-    return (
-      <div className="mc-surface p-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
+    return <div className="mc-surface p-8 text-center text-sm text-destructive">{error}</div>;
   }
 
   if (!artist) {
     return (
       <div className="space-y-6">
-        <div className="h-40 animate-pulse rounded-3xl bg-muted" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="aspect-square animate-pulse rounded-2xl bg-muted" />
-          ))}
-        </div>
+        <Skeleton className="h-56 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
+  const coverAlbum = albums.find((album) => album.artwork_id);
+  const popular = tracks.slice(0, 5);
+
   return (
     <div className="space-y-7">
-      <Link
-        to="/"
-        className="inline-flex items-center text-sm text-muted-foreground transition hover:text-foreground"
-      >
-        ← Библиотека
-      </Link>
-
-      <section className="relative overflow-hidden rounded-3xl bg-card/60 p-5 md:p-7">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 via-primary/50 to-orange-600 text-4xl font-semibold text-primary-foreground shadow-xl shadow-primary/20 sm:h-32 sm:w-32">
-            {artist.name.slice(0, 1).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-              Исполнитель
-            </p>
-            <h1 className="mt-2 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              {artist.name}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {albumsLabel(albums.length)} · {tracksLabel(artist.track_count)}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <Button
-                size="lg"
-                className="rounded-full px-6"
-                onClick={() => void playAll()}
-                disabled={busy || albums.length === 0}
-              >
-                {busy ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="mr-2 h-4 w-4" />
-                )}
-                Слушать
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-11 w-11"
-                onClick={() => void toggleStar()}
-                aria-label={starred ? "Убрать из избранного" : "В избранное"}
-              >
-                <Heart className={cn("h-4 w-4", starred && "fill-primary text-primary")} />
-              </Button>
+      <EntityHeader
+        kind="Исполнитель"
+        title={artist.name}
+        backTo="/library?view=artists"
+        backLabel="Исполнители"
+        artwork={
+          coverAlbum ? (
+            <Artwork albumId={coverAlbum.id} title={artist.name} className="h-full w-full" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-muted text-5xl font-semibold text-muted-foreground">
+              {artist.name.slice(0, 1).toUpperCase()}
             </div>
-          </div>
-        </div>
-      </section>
+          )
+        }
+        meta={
+          <span>
+            {artist.album_count} альбомов · {artist.track_count} треков
+          </span>
+        }
+        actions={
+          <>
+            <Button
+              size="lg"
+              className="rounded-full px-6"
+              onClick={() => playAll(false)}
+              disabled={tracks.length === 0}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Слушать
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => playAll(true)}
+              disabled={tracks.length === 0}
+              aria-label="Перемешать"
+              title="Перемешать"
+            >
+              <Shuffle className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => void toggleStar()}
+              aria-label={starred ? "Убрать из избранного" : "В избранное"}
+            >
+              <Heart className={cn("h-4 w-4", starred && "fill-foreground")} />
+            </Button>
+          </>
+        }
+      />
 
-      {albums.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Альбомов пока нет.</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
-          {albums.map((album) => (
-            <AlbumCard
-              key={album.id}
-              album={album}
-              busy={busyAlbum === album.id}
-              onPlay={() => void playAlbum(album.id)}
-            />
-          ))}
+      {popular.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">Популярное</h2>
+          <TrackList
+            tracks={popular}
+            onPlay={(track, queue) => playTrack(track, queue)}
+            onTracksChanged={() => void load()}
+          />
+        </section>
+      )}
+
+      {albums.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">Альбомы</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+            {albums.map((album) => (
+              <AlbumCard
+                key={album.id}
+                album={album}
+                busy={busyAlbum === album.id}
+                onPlay={() => void playAlbum(album)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {albums.length === 0 && tracks.length === 0 && (
+        <div className="mc-surface p-8 text-center text-sm text-muted-foreground">
+          У этого исполнителя пока нет доступных треков.
         </div>
       )}
     </div>

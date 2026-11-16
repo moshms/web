@@ -152,6 +152,25 @@ export type AdminUser = {
   roles: RoleRecord[];
 };
 
+export type SubsonicCredentials = {
+  username: string;
+  password: string;
+};
+
+export type ApiToken = {
+  id: string;
+  name: string;
+  expires_at: string | null;
+  created_at: string;
+  last_used_at: string | null;
+};
+
+export type CreatedToken = {
+  id: string;
+  name: string;
+  token: string;
+};
+
 export type SetupStatus = {
   required: boolean;
   token_required: boolean;
@@ -275,6 +294,11 @@ export const api = {
     post<User>("/api/v1/auth/login", { username, password }),
   logout: () => post<void>("/api/v1/auth/logout"),
   me: () => request<User>("/api/v1/auth/me"),
+  subsonicCredentials: () => request<SubsonicCredentials>("/api/v1/auth/subsonic"),
+  tokens: () => request<ApiToken[]>("/api/v1/auth/tokens"),
+  createToken: (body: { name: string; expires_in_days?: number }) =>
+    post<CreatedToken>("/api/v1/auth/tokens", body),
+  deleteToken: (id: string) => remove(`/api/v1/auth/tokens/${id}`),
 
   features: () => request<Features>("/api/v1/features"),
   libraries: () => request<Library[]>("/api/v1/libraries"),
@@ -308,6 +332,7 @@ export const api = {
   unstarArtist: (id: string) => remove(`/api/v1/artists/${id}/star`),
 
   streamUrl: (trackId: string) => `/api/v1/stream/${trackId}`,
+  downloadUrl: (trackId: string) => `/api/v1/download/${trackId}`,
   artworkUrl: (albumId: string) => `/api/v1/artwork/${albumId}`,
 
   roles: () => request<RoleRecord[]>("/api/v1/roles"),

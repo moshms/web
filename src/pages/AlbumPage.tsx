@@ -13,9 +13,10 @@ import {
 import { useAuth } from "@/auth";
 import { AlbumEditDialog } from "@/components/AlbumEditDialog";
 import { Artwork } from "@/components/Artwork";
+import { EntityHeader } from "@/components/EntityHeader";
 import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
-import { tracksLabel } from "@/lib/plural";
+import { Skeleton } from "@/components/ui/skeleton";
 import { canEditTrack as canEditTrackPermission } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
@@ -38,7 +39,6 @@ export function AlbumPage() {
     if (!albumId) {
       return;
     }
-
     try {
       const [loadedAlbum, favorites, loadedPlaylists, loadedFeatures] = await Promise.all([
         api.album(albumId),
@@ -52,9 +52,7 @@ export function AlbumPage() {
       setPlaylists(loadedPlaylists);
       setFeatures(loadedFeatures);
     } catch (caught) {
-      setError(
-        caught instanceof ApiError ? caught.message : "Не удалось загрузить альбом",
-      );
+      setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить альбом");
     }
   }, [albumId]);
 
@@ -73,7 +71,6 @@ export function AlbumPage() {
       }
       return next;
     });
-
     try {
       if (isStarred) {
         await api.unstarTrack(track.id);
@@ -90,7 +87,6 @@ export function AlbumPage() {
     if (!album) {
       return;
     }
-
     const nextStarred = !albumStarred;
     setAlbumStarred(nextStarred);
     try {
@@ -118,26 +114,19 @@ export function AlbumPage() {
     if (!album || album.tracks.length === 0) {
       return;
     }
-
-    const queue = shuffle
-      ? [...album.tracks].sort(() => Math.random() - 0.5)
-      : album.tracks;
+    const queue = shuffle ? [...album.tracks].sort(() => Math.random() - 0.5) : album.tracks;
     playTrack(queue[0], queue);
   };
 
   if (error) {
-    return (
-      <div className="mc-surface p-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
+    return <div className="mc-surface p-8 text-center text-sm text-destructive">{error}</div>;
   }
 
   if (!album) {
     return (
       <div className="space-y-6">
-        <div className="h-64 animate-pulse rounded-3xl bg-muted" />
-        <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+        <Skeleton className="h-56 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -154,89 +143,68 @@ export function AlbumPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to={`/artists/${album.album_artist_id}`}
-        className="inline-flex items-center text-sm text-muted-foreground transition hover:text-foreground"
-      >
-        ← {album.album_artist}
-      </Link>
-
-      <section className="relative overflow-hidden rounded-3xl bg-card/60 p-4 md:p-6">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
-          {album.artwork_id && (
-            <img
-              src={api.artworkUrl(album.id)}
-              alt=""
-              className="h-full w-full scale-125 object-cover opacity-15 blur-3xl"
-            />
-          )}
-        </div>
-
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end">
+      <EntityHeader
+        kind="Альбом"
+        title={album.title}
+        backTo={`/artists/${album.album_artist_id}`}
+        backLabel={album.album_artist}
+        artwork={
           <Artwork
             albumId={album.artwork_id ? album.id : null}
             title={album.title}
-            className="mx-auto aspect-square w-40 shrink-0 rounded-2xl shadow-xl shadow-black/10 sm:mx-0 sm:w-52 md:w-56"
+            className="h-full w-full"
             iconClassName="h-12 w-12"
           />
-
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-              Альбом
-            </p>
-            <h1 className="mt-2 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              {album.title}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+        }
+        meta={
+          <span>
+            <Link to={`/artists/${album.album_artist_id}`} className="hover:text-foreground">
               {album.album_artist}
-              {album.year > 0 ? ` · ${album.year}` : ""} · {tracksLabel(album.track_count)} ·{" "}
-              {minutes} мин
-            </p>
-
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <Button
-                size="lg"
-                className="rounded-full px-6"
-                onClick={() => play(false)}
-                disabled={album.tracks.length === 0}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Слушать
+            </Link>
+            {album.year > 0 ? ` · ${album.year}` : ""} · {album.track_count} треков · {minutes} мин
+          </span>
+        }
+        actions={
+          <>
+            <Button
+              size="lg"
+              className="rounded-full px-6"
+              onClick={() => play(false)}
+              disabled={album.tracks.length === 0}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Слушать
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => play(true)}
+              disabled={album.tracks.length === 0}
+              aria-label="Перемешать альбом"
+              title="Перемешать"
+            >
+              <Shuffle className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => void toggleAlbumStar()}
+              aria-label={albumStarred ? "Убрать альбом из избранного" : "Добавить альбом в избранное"}
+              title={albumStarred ? "Убрать из избранного" : "В избранное"}
+            >
+              <Heart className={cn("h-4 w-4", albumStarred && "fill-foreground")} />
+            </Button>
+            {canEdit && (
+              <Button variant="outline" size="lg" onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Редактировать
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-11 w-11"
-                onClick={() => play(true)}
-                disabled={album.tracks.length === 0}
-                aria-label="Перемешать альбом"
-                title="Перемешать"
-              >
-                <Shuffle className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-11 w-11"
-                onClick={() => void toggleAlbumStar()}
-                aria-label={albumStarred ? "Убрать альбом из избранного" : "Добавить альбом в избранное"}
-                title={albumStarred ? "Убрать из избранного" : "В избранное"}
-              >
-                <Heart
-                  className={cn("h-4 w-4", albumStarred && "fill-primary text-primary")}
-                />
-              </Button>
-              {canEdit && (
-                <Button variant="outline" size="lg" onClick={() => setEditOpen(true)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Редактировать
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+            )}
+          </>
+        }
+      />
 
       <TrackList
         tracks={album.tracks}

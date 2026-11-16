@@ -11,17 +11,24 @@ export default {
       },
       fontFamily: {
         sans: [
+          "Inter Variable",
+          "Inter",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
-          "Inter",
           "sans-serif",
         ],
-      },
-      boxShadow: {
-        glow: "0 0 40px -12px hsl(var(--primary) / 0.55)",
+        mono: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Monaco",
+          "Consolas",
+          "Liberation Mono",
+          "monospace",
+        ],
       },
       keyframes: {
         "fade-in": {
