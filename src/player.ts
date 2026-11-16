@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 
 import type { Track } from "@/api";
 
+export type RepeatMode = "off" | "all" | "one";
+
 type PlayerState = {
   queue: Track[];
   index: number;
@@ -10,6 +12,8 @@ type PlayerState = {
   currentTime: number;
   duration: number;
   volume: number;
+  shuffle: boolean;
+  repeat: RepeatMode;
   playTrack: (track: Track, queue?: Track[]) => void;
   playAt: (index: number) => void;
   playNext: (track: Track) => void;
@@ -23,6 +27,8 @@ type PlayerState = {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   setVolume: (volume: number) => void;
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
 };
 
 export const usePlayer = create<PlayerState>()(
@@ -34,6 +40,8 @@ export const usePlayer = create<PlayerState>()(
       currentTime: 0,
       duration: 0,
       volume: 0.8,
+      shuffle: false,
+      repeat: "off",
 
       playTrack: (track, queue) => {
         const nextQueue = queue && queue.length > 0 ? queue : [track];
@@ -123,24 +131,66 @@ export const usePlayer = create<PlayerState>()(
       },
 
       next: () => {
-        const { index, queue } = get();
+        const { index, queue, repeat } = get();
+        if (queue.length === 0) {
+          return;
+        }
+        if (repeat === "one") {
+          set({ currentTime: 0, playing: true });
+          return;
+        }
         if (index + 1 < queue.length) {
           set({ index: index + 1, currentTime: 0, duration: 0, playing: true });
+        } else if (repeat === "all") {
+          set({ index: 0, currentTime: 0, duration: 0, playing: true });
         } else {
           set({ playing: false });
         }
       },
 
       previous: () => {
-        const { index } = get();
+        const { index, currentTime, queue, repeat } = get();
+        if (queue.length === 0) {
+          return;
+        }
+        if (currentTime > 3) {
+          set({ currentTime: 0 });
+          return;
+        }
         if (index > 0) {
           set({ index: index - 1, currentTime: 0, duration: 0, playing: true });
+        } else if (repeat === "all") {
+          set({ index: queue.length - 1, currentTime: 0, duration: 0, playing: true });
         }
       },
 
       setCurrentTime: (currentTime) => set({ currentTime }),
       setDuration: (duration) => set({ duration }),
       setVolume: (volume) => set({ volume }),
+
+      toggleShuffle: () => {
+        const { queue, index, shuffle } = get();
+        if (queue.length <= 1) {
+          set({ shuffle: !shuffle });
+          return;
+        }
+        if (shuffle) {
+          set({ shuffle: false });
+          return;
+        }
+        const current = queue[index];
+        const rest = queue.filter((_, position) => position !== index);
+        for (let position = rest.length - 1; position > 0; position -= 1) {
+          const swap = Math.floor(Math.random() * (position + 1));
+          [rest[position], rest[swap]] = [rest[swap], rest[position]];
+        }
+        set({ queue: current ? [current, ...rest] : rest, index: 0, shuffle: true });
+      },
+
+      cycleRepeat: () => {
+        const { repeat } = get();
+        set({ repeat: repeat === "off" ? "all" : repeat === "all" ? "one" : "off" });
+      },
     }),
     {
       name: "mc-player",
@@ -148,6 +198,8 @@ export const usePlayer = create<PlayerState>()(
         queue: state.queue,
         index: state.index,
         volume: state.volume,
+        shuffle: state.shuffle,
+        repeat: state.repeat,
       }),
     },
   ),

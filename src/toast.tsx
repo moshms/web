@@ -49,16 +49,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={item.id}
               role="status"
               className={cn(
-                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl bg-card/95 px-4 py-3 text-sm shadow-xl backdrop-blur animate-slide-up",
+                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-border bg-popover px-4 py-3 text-sm animate-slide-up",
                 item.kind === "error" && "bg-destructive/10",
               )}
             >
               <Icon
                 className={cn(
                   "mt-0.5 h-4 w-4 shrink-0",
-                  item.kind === "success" && "text-emerald-500",
+                  item.kind === "success" && "text-foreground",
                   item.kind === "error" && "text-destructive",
-                  item.kind === "info" && "text-primary",
+                  item.kind === "info" && "text-muted-foreground",
                 )}
               />
               <p className="min-w-0 flex-1 leading-snug">{item.message}</p>

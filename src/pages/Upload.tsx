@@ -129,7 +129,7 @@ export function UploadPage() {
     <div className="space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Загрузка
         </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
@@ -185,13 +185,13 @@ export function UploadPage() {
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={cn(
-            "mt-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition",
+            "mt-4 flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-14 text-center transition",
             dragging
-              ? "border-primary bg-primary/10"
+              ? "border-foreground bg-muted"
               : "border-border/80 bg-background/40 hover:border-primary/40 hover:bg-accent/30",
           )}
         >
-          <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/20 to-accent text-primary">
+          <span className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted text-foreground">
             <UploadCloud className="h-7 w-7" />
           </span>
           <h2 className="mt-4 text-lg font-semibold">Перетащите файлы сюда</h2>
@@ -231,15 +231,15 @@ export function UploadPage() {
             </button>
           </div>
           {items.map((item) => (
-            <div key={item.id} className="mc-surface rounded-xl p-3">
+            <div key={item.id} className="mc-surface rounded-md p-3">
               <div className="flex items-center gap-3 text-sm">
                 <span className="shrink-0 text-muted-foreground">
                   {item.status === "done" ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 text-foreground" />
                   ) : item.status === "error" ? (
                     <AlertCircle className="h-4 w-4 text-destructive" />
                   ) : (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
                 </span>
                 <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>

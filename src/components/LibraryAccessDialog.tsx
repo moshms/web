@@ -198,7 +198,7 @@ export function LibraryAccessDialog({
         <div className="space-y-5">
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex items-center justify-between gap-4 rounded-xl bg-secondary/40 px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-md bg-secondary/40 px-4 py-3">
             <div>
               <p className="text-sm font-medium">Доступна всем</p>
               <p className="text-xs text-muted-foreground">
@@ -228,13 +228,13 @@ export function LibraryAccessDialog({
             {customOverwrites.length === 0 ? (
               <p className="text-sm text-muted-foreground">Пока никому не выдан.</p>
             ) : (
-              <div className="divide-y divide-border/40 rounded-xl bg-card/40 px-2">
+              <div className="divide-y divide-border/40 rounded-md bg-card/40 px-2">
                 {customOverwrites.map((overwrite) => (
                   <div
                     key={`${overwrite.target_type}-${overwrite.target_id}`}
                     className="flex items-center gap-3 py-2"
                   >
-                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <ShieldCheck className="h-4 w-4 text-foreground" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{targetName(overwrite)}</p>
                       <p className="text-xs text-muted-foreground">

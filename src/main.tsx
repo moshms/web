@@ -6,6 +6,7 @@ import App from "./App";
 import { AuthProvider } from "./auth";
 import { ThemeProvider } from "./theme";
 import { ToastProvider } from "./toast";
+import "@fontsource-variable/inter";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(

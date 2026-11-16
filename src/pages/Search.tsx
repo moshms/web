@@ -1,15 +1,20 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Music2, Search as SearchIcon, Sparkles, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Music2, Sparkles } from "lucide-react";
+
+import { useSearchParams } from "react-router-dom";
 
 import { api, ApiError, type Album, type Artist, type SearchResults } from "@/api";
 import { AlbumCard, ArtistCard } from "@/components/MediaCard";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { TrackList } from "@/components/TrackList";
 import { usePlayer } from "@/player";
 
 const emptyResults: SearchResults = { artists: [], albums: [], tracks: [] };
 
 export function SearchPage() {
-  const [query, setQuery] = useState("");
+  const [params] = useSearchParams();
+  const query = params.get("q") ?? "";
   const [results, setResults] = useState<SearchResults>(emptyResults);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -73,10 +78,6 @@ export function SearchPage() {
     }
   };
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-  };
-
   const refresh = () => {
     const value = query.trim();
     if (!value) {
@@ -87,40 +88,12 @@ export function SearchPage() {
 
   return (
     <div className="space-y-7">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-          Поиск
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Найти в коллекции
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Исполнители, альбомы и треки — результаты появляются по мере ввода
-        </p>
-      </div>
+      <PageHeader
+        title="Поиск"
+        description="Исполнители, альбомы и треки — результаты появляются по мере ввода."
+      />
 
-      <form onSubmit={submit} className="relative max-w-2xl">
-        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Название трека, альбома или исполнителя"
-          autoFocus
-          className="mc-field h-12 rounded-2xl pl-12 pr-12 text-base"
-        />
-        {loading ? (
-          <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
-        ) : query ? (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
-            aria-label="Очистить поиск"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        ) : null}
-      </form>
+      {loading && <p className="text-sm text-muted-foreground">Ищем…</p>}
 
       {error && (
         <div className="mc-surface bg-destructive/10 p-4 text-sm text-destructive">
@@ -129,26 +102,19 @@ export function SearchPage() {
       )}
 
       {!loading && !error && !query.trim() && (
-        <div className="mc-surface flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Sparkles className="h-6 w-6" />
-          </span>
-          <div>
-            <h2 className="font-semibold">Что послушаем?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Введите название или начните с исполнителя из библиотеки.
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={<Sparkles className="h-5 w-5" />}
+          title="Что послушаем?"
+          description="Введите запрос в строке поиска сверху — результаты появятся здесь."
+        />
       )}
 
       {!loading && !error && query.trim() && !hasResults && (
-        <div className="mc-surface px-6 py-14 text-center">
-          <Music2 className="mx-auto h-8 w-8 text-muted-foreground/50" />
-          <p className="mt-3 text-sm text-muted-foreground">
-            По запросу «{query.trim()}» ничего не найдено.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Music2 className="h-5 w-5" />}
+          title="Ничего не найдено"
+          description={`По запросу «${query.trim()}» ничего не найдено.`}
+        />
       )}
 
       {results.artists.length > 0 && (

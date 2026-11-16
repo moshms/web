@@ -172,14 +172,14 @@ export function TrackEditDialog({
     >
       <form id="track-edit-form" onSubmit={(event) => void submit(event)} className="space-y-4">
         {!available && (
-          <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
             Редактор недоступен: воркер не запущен. Изменения можно будет сохранить после
             включения профиля worker.
           </p>
         )}
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <label className="group relative block h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-xl">
+          <label className="group relative block h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-md">
             {preview ? (
               <img src={preview} alt="Новая обложка" className="h-full w-full object-cover" />
             ) : (

@@ -169,7 +169,7 @@ export function TagEditorPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Метаданные</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Метаданные</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Редактор тегов</h1>
         <p className="text-sm text-muted-foreground">
           Массовая правка тегов и замена обложки через фоновую запись в файлы
@@ -177,7 +177,7 @@ export function TagEditorPage() {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {message && <p className="text-sm text-emerald-700">{message}</p>}
+      {message && <p className="text-sm text-foreground">{message}</p>}
 
       <form onSubmit={(event) => void search(event)} className="flex max-w-xl gap-2">
         <input
@@ -193,7 +193,7 @@ export function TagEditorPage() {
       </form>
 
       {results.length > 0 && (
-        <div className="divide-y divide-border/40 rounded-2xl bg-card/50">
+        <div className="divide-y divide-border/40 rounded-lg bg-card">
           {results.map((track) => (
             <label
               key={track.id}
@@ -218,7 +218,7 @@ export function TagEditorPage() {
 
       <form onSubmit={(event) => void submit(event)} className="space-y-4 mc-surface p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
+          <span className="rounded-full bg-muted px-3 py-1 text-foreground">
             Выбрано: {selected.size}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -239,7 +239,7 @@ export function TagEditorPage() {
             type="file"
             accept="image/*"
             onChange={(event) => selectArtwork(event.target.files?.[0] ?? null)}
-            className="mc-field h-auto py-1.5 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-primary"
+            className="mc-field h-auto py-1.5 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-muted-foreground"
           />
         </div>
 
@@ -280,7 +280,7 @@ export function TagEditorPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Последние правки
         </h2>
-        <div className="divide-y divide-border/40 rounded-2xl bg-card/50 text-sm">
+        <div className="divide-y divide-border/40 rounded-lg bg-card text-sm">
           {edits.map((edit) => (
             <div key={edit.id} className="px-3 py-2">
               <p className="font-medium">

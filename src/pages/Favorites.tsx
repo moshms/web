@@ -4,6 +4,8 @@ import { Heart } from "lucide-react";
 import { api, ApiError, type Favorites as FavoritesData, type Track } from "@/api";
 import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { TrackList } from "@/components/TrackList";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 
@@ -14,19 +16,13 @@ export function FavoritesPage() {
   const playTrack = usePlayer((state) => state.playTrack);
   const { toast } = useToast();
 
-  const load = () => {
+  useEffect(() => {
     api
       .favorites()
       .then(setFavorites)
       .catch((caught) =>
-        setError(
-          caught instanceof ApiError ? caught.message : "Не удалось загрузить избранное",
-        ),
+        setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить избранное"),
       );
-  };
-
-  useEffect(() => {
-    load();
   }, []);
 
   const toggleStar = async (track: Track) => {
@@ -74,18 +70,14 @@ export function FavoritesPage() {
   };
 
   if (error) {
-    return (
-      <div className="mc-surface p-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
+    return <div className="mc-surface p-8 text-center text-sm text-destructive">{error}</div>;
   }
 
   if (!favorites) {
     return (
       <div className="space-y-6">
-        <div className="h-24 w-64 animate-pulse rounded-2xl bg-muted" />
-        <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+        <div className="h-16 w-56 animate-pulse rounded-md bg-muted" />
+        <div className="h-56 animate-pulse rounded-md bg-muted" />
       </div>
     );
   }
@@ -97,53 +89,39 @@ export function FavoritesPage() {
 
   return (
     <div className="space-y-7">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-          Избранное
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Любимая музыка
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Отмеченные треки, альбомы и исполнители
-        </p>
-      </div>
+      <PageHeader
+        title="Избранное"
+        description="Треки, альбомы и исполнители, которые вы отметили."
+      />
 
       {!hasFavorites && (
-        <div className="mc-surface flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Heart className="h-6 w-6" />
-          </span>
-          <div>
-            <h2 className="font-semibold">Пока пусто</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Нажимайте на сердечко у треков и альбомов, чтобы собрать коллекцию.
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={<Heart className="h-5 w-5" />}
+          title="Пока пусто"
+          description="Нажимайте на сердечко у треков, альбомов и исполнителей."
+        />
       )}
 
       {favorites.tracks.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Треки <span className="text-muted-foreground/60">{favorites.tracks.length}</span>
+          <h2 className="text-base font-semibold">
+            Треки <span className="text-sm font-normal text-muted-foreground">{favorites.tracks.length}</span>
           </h2>
           <TrackList
             tracks={favorites.tracks}
             onPlay={(track, queue) => playTrack(track, queue)}
             starred={new Set(favorites.tracks.map((track) => track.id))}
             onToggleStar={(track) => void toggleStar(track)}
-            onTracksChanged={load}
           />
         </section>
       )}
 
       {favorites.albums.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Альбомы <span className="text-muted-foreground/60">{favorites.albums.length}</span>
+          <h2 className="text-base font-semibold">
+            Альбомы <span className="text-sm font-normal text-muted-foreground">{favorites.albums.length}</span>
           </h2>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
             {favorites.albums.map((album) => (
               <AlbumCard
                 key={album.id}
@@ -158,11 +136,11 @@ export function FavoritesPage() {
 
       {favorites.artists.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <h2 className="text-base font-semibold">
             Исполнители{" "}
-            <span className="text-muted-foreground/60">{favorites.artists.length}</span>
+            <span className="text-sm font-normal text-muted-foreground">{favorites.artists.length}</span>
           </h2>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
             {favorites.artists.map((artist) => (
               <ArtistCard
                 key={artist.id}

@@ -1,23 +1,42 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { api } from "@/api";
 import { useAuth } from "@/auth";
 import { Layout } from "@/components/Layout";
 import { AlbumPage } from "@/pages/AlbumPage";
-import { AdminPage } from "@/pages/Admin";
 import { ArtistPage } from "@/pages/ArtistPage";
 import { FavoritesPage } from "@/pages/Favorites";
+import { HomePage } from "@/pages/HomePage";
 import { LibraryPage } from "@/pages/Library";
 import { Login } from "@/pages/Login";
 import { PlaylistPage } from "@/pages/PlaylistPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 import { PlaylistsPage } from "@/pages/Playlists";
 import { SearchPage } from "@/pages/Search";
 import { Setup } from "@/pages/Setup";
-import { TagEditorPage } from "@/pages/TagEditor";
-import { UploadPage } from "@/pages/Upload";
-import { RolesPage } from "@/pages/RolesPage";
 import { can, canAnyLibrary, canManageServer, P } from "@/permissions";
+
+const AdminPage = lazy(() =>
+  import("@/pages/Admin").then((module) => ({ default: module.AdminPage })),
+);
+const TagEditorPage = lazy(() =>
+  import("@/pages/TagEditor").then((module) => ({ default: module.TagEditorPage })),
+);
+const UploadPage = lazy(() =>
+  import("@/pages/Upload").then((module) => ({ default: module.UploadPage })),
+);
+const RolesPage = lazy(() =>
+  import("@/pages/RolesPage").then((module) => ({ default: module.RolesPage })),
+);
+
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+      Загружаем…
+    </div>
+  );
+}
 
 function AdminRoute() {
   const { user } = useAuth();
@@ -86,9 +105,12 @@ export default function App() {
   }
 
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<LibraryPage />} />
+        <Route index element={<HomePage />} />
+        <Route path="library" element={<LibraryPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="artists/:artistId" element={<ArtistPage />} />
         <Route path="albums/:albumId" element={<AlbumPage />} />
         <Route path="search" element={<SearchPage />} />
@@ -102,5 +124,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }

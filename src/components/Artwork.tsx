@@ -21,7 +21,7 @@ export function Artwork({ albumId, title, className, iconClassName }: ArtworkPro
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/25 via-accent to-secondary text-primary/70",
+        "relative flex items-center justify-center overflow-hidden bg-muted text-muted-foreground",
         className,
       )}
     >

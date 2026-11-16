@@ -1,27 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { Library, Search, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Grid2X2, List, Loader2, Play, Search, Upload } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { api, ApiError, type Album, type Artist } from "@/api";
 import { useAuth } from "@/auth";
+import { Artwork } from "@/components/Artwork";
 import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
-import { artistsLabel, albumsLabel, tracksLabel } from "@/lib/plural";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs } from "@/components/ui/tabs";
 import { canAnyLibrary, P } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
 
-type Tab = "artists" | "albums";
+type View = "albums" | "artists";
+type Sort = "name" | "year" | "artist";
 
 export function LibraryPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [tab, setTab] = useState<Tab>("artists");
-  const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [sort, setSort] = useState<Sort>("name");
+  const [params, setParams] = useSearchParams();
+  const view = (params.get("view") === "artists" ? "artists" : "albums") as View;
   const playTrack = usePlayer((state) => state.playTrack);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -34,32 +42,32 @@ export function LibraryPage() {
         setAlbums(loadedAlbums);
       })
       .catch((caught) =>
-        setError(
-          caught instanceof ApiError ? caught.message : "Не удалось загрузить библиотеку",
-        ),
+        setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить библиотеку"),
       )
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredArtists = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase();
-    if (!value) {
-      return artists;
-    }
-    return artists.filter((artist) => artist.name.toLocaleLowerCase().includes(value));
-  }, [artists, query]);
+  const sortedAlbums = useMemo(() => {
+    const copy = [...albums];
+    copy.sort((left, right) => {
+      if (sort === "year") {
+        return right.year - left.year || left.title.localeCompare(right.title);
+      }
+      if (sort === "artist") {
+        return (
+          left.album_artist.localeCompare(right.album_artist) ||
+          left.title.localeCompare(right.title)
+        );
+      }
+      return left.title.localeCompare(right.title);
+    });
+    return copy;
+  }, [albums, sort]);
 
-  const filteredAlbums = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase();
-    if (!value) {
-      return albums;
-    }
-    return albums.filter(
-      (album) =>
-        album.title.toLocaleLowerCase().includes(value) ||
-        album.album_artist.toLocaleLowerCase().includes(value),
-    );
-  }, [albums, query]);
+  const sortedArtists = useMemo(
+    () => [...artists].sort((left, right) => left.name.localeCompare(right.name)),
+    [artists],
+  );
 
   const playAlbum = async (album: Album) => {
     setBusyId(album.id);
@@ -92,145 +100,191 @@ export function LibraryPage() {
   };
 
   const trackCount = artists.reduce((sum, artist) => sum + artist.track_count, 0);
-  const noMatches =
-    !loading &&
-    !error &&
-    Boolean(query.trim()) &&
-    ((tab === "artists" && filteredArtists.length === 0) ||
-      (tab === "albums" && filteredAlbums.length === 0));
+  const current = view === "albums" ? sortedAlbums : sortedArtists;
 
   return (
-    <div className="space-y-7">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-            Ваша коллекция
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Библиотека
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {artists.length > 0
-              ? `${artistsLabel(artists.length)} · ${albumsLabel(albums.length)} · ${tracksLabel(trackCount)}`
-              : "Исполнители и альбомы"}
-          </p>
-        </div>
-        {canUpload && (
-          <Button asChild>
-            <Link to="/upload">
-              <Upload className="mr-2 h-4 w-4" />
-              Загрузить музыку
-            </Link>
-          </Button>
-        )}
+    <div className="space-y-5">
+      <PageHeader
+        title="Библиотека"
+        description={`${artists.length} исполнителей · ${albums.length} альбомов · ${trackCount} треков`}
+        actions={
+          canUpload ? (
+            <Button asChild variant="outline">
+              <Link to="/upload">
+                <Upload className="mr-2 h-4 w-4" />
+                Загрузить
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <div className="flex gap-2 md:hidden">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/favorites">Избранное</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/playlists">Плейлисты</Link>
+        </Button>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Фильтр по библиотеке"
-            className="mc-field pl-10"
-          />
-        </div>
-
-        <div className="inline-flex w-fit rounded-full bg-card/60 p-1">
-          {(
-            [
-              ["artists", "Исполнители", artists.length],
-              ["albums", "Альбомы", albums.length],
-            ] as const
-          ).map(([value, label, count]) => (
+        <Tabs
+          value={view}
+          onChange={(next) => setParams({ view: next })}
+          items={[
+            { value: "albums", label: "Альбомы", count: albums.length },
+            { value: "artists", label: "Исполнители", count: artists.length },
+          ]}
+          className="w-full sm:min-w-0 sm:flex-1"
+        />
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as Sort)}
+            aria-label="Сортировка"
+            className="w-36"
+          >
+            <option value="name">По названию</option>
+            <option value="year">По году</option>
+            <option value="artist">По исполнителю</option>
+          </Select>
+          <div className="flex rounded-md border border-border p-0.5">
             <button
-              key={value}
               type="button"
-              onClick={() => setTab(value)}
+              onClick={() => setLayout("grid")}
               className={cn(
-                "rounded-full px-3.5 py-1.5 text-xs font-medium transition",
-                tab === value
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                "rounded p-1.5 text-muted-foreground",
+                layout === "grid" && "bg-muted text-foreground",
               )}
+              aria-label="Сетка"
             >
-              {label} <span className="opacity-70">{count}</span>
+              <Grid2X2 className="h-4 w-4" />
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setLayout("list")}
+              className={cn(
+                "rounded p-1.5 text-muted-foreground",
+                layout === "list" && "bg-muted text-foreground",
+              )}
+              aria-label="Список"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {loading && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {error && (
+        <div className="mc-surface border-destructive/30 p-4 text-sm text-destructive">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 10 }).map((_, index) => (
-            <div key={index} className="space-y-3">
-              <div className="aspect-square animate-pulse rounded-2xl bg-muted" />
-              <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+            <div key={index} className="space-y-2">
+              <Skeleton className="aspect-square" />
+              <Skeleton className="h-4 w-2/3" />
             </div>
           ))}
         </div>
-      )}
-
-      {error && (
-        <div className="mc-surface bg-destructive/10 p-6 text-center text-sm text-destructive">
-          {error}
+      ) : current.length === 0 ? (
+        <EmptyState
+          icon={<Search className="h-5 w-5" />}
+          title="Здесь пока пусто"
+          description="Загрузите музыку или запустите скан библиотеки."
+        />
+      ) : layout === "grid" ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+          {view === "albums"
+            ? sortedAlbums.map((album) => (
+                <AlbumCard
+                  key={album.id}
+                  album={album}
+                  busy={busyId === album.id}
+                  onPlay={() => void playAlbum(album)}
+                />
+              ))
+            : sortedArtists.map((artist) => (
+                <ArtistCard
+                  key={artist.id}
+                  artist={artist}
+                  busy={busyId === artist.id}
+                  onPlay={() => void playArtist(artist)}
+                />
+              ))}
         </div>
-      )}
-
-      {!loading && !error && artists.length === 0 && (
-        <div className="mc-surface flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Library className="h-6 w-6" />
-          </span>
-          <div>
-            <h2 className="font-semibold">Библиотека пуста</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Загрузите музыку или запустите скан в админке.
-            </p>
-          </div>
-          {canUpload && (
-            <Button asChild>
-              <Link to="/upload">
-                <Upload className="mr-2 h-4 w-4" />
-                Загрузить музыку
-              </Link>
-            </Button>
-          )}
+      ) : (
+        <div className="mc-surface divide-y divide-border overflow-hidden">
+          {view === "albums"
+            ? sortedAlbums.map((album) => (
+                <div
+                  key={album.id}
+                  className="group flex items-center gap-3 px-3 py-2 hover:bg-muted/50"
+                >
+                  <Artwork
+                    albumId={album.artwork_id ? album.id : null}
+                    title={album.title}
+                    className="h-10 w-10 shrink-0 rounded-md"
+                    iconClassName="h-4 w-4"
+                  />
+                  <Link to={`/albums/${album.id}`} className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{album.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {album.album_artist}
+                      {album.year > 0 ? ` · ${album.year}` : ""}
+                    </p>
+                  </Link>
+                  <span className="hidden text-xs text-muted-foreground sm:block">
+                    {album.track_count} треков
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => void playAlbum(album)}
+                    aria-label={`Играть ${album.title}`}
+                  >
+                    {busyId === album.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              ))
+            : sortedArtists.map((artist) => (
+                <div
+                  key={artist.id}
+                  className="group flex items-center gap-3 px-3 py-2 hover:bg-muted/50"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+                    {artist.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <Link to={`/artists/${artist.id}`} className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{artist.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {artist.album_count} альбомов · {artist.track_count} треков
+                    </p>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => void playArtist(artist)}
+                    aria-label={`Играть ${artist.name}`}
+                  >
+                    {busyId === artist.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              ))}
         </div>
-      )}
-
-      {!loading && !error && tab === "artists" && filteredArtists.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
-          {filteredArtists.map((artist) => (
-            <ArtistCard
-              key={artist.id}
-              artist={artist}
-              busy={busyId === artist.id}
-              onPlay={() => void playArtist(artist)}
-            />
-          ))}
-        </div>
-      )}
-
-      {!loading && !error && tab === "albums" && filteredAlbums.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4 xl:grid-cols-5">
-          {filteredAlbums.map((album) => (
-            <AlbumCard
-              key={album.id}
-              album={album}
-              busy={busyId === album.id}
-              onPlay={() => void playAlbum(album)}
-            />
-          ))}
-        </div>
-      )}
-
-      {noMatches && (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          По запросу «{query.trim()}» ничего не найдено.
-        </p>
       )}
     </div>
   );
 }
-
