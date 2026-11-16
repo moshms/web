@@ -154,6 +154,7 @@ export type AdminUser = {
 
 export type SetupStatus = {
   required: boolean;
+  token_required: boolean;
 };
 
 export type ScanStats = {
@@ -264,8 +265,12 @@ function remove(path: string): Promise<void> {
 
 export const api = {
   setupStatus: () => request<SetupStatus>("/api/v1/auth/setup"),
-  setup: (username: string, password: string) =>
-    post<User>("/api/v1/auth/setup", { username, password }),
+  setup: (username: string, password: string, setupToken: string) =>
+    post<User>("/api/v1/auth/setup", {
+      username,
+      password,
+      setup_token: setupToken,
+    }),
   login: (username: string, password: string) =>
     post<User>("/api/v1/auth/login", { username, password }),
   logout: () => post<void>("/api/v1/auth/logout"),

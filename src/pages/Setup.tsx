@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export function Setup({ onComplete }: { onComplete: () => void }) {
   const [username, setUsername] = useState("admin");
+  const [setupToken, setSetupToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export function Setup({ onComplete }: { onComplete: () => void }) {
 
     setLoading(true);
     try {
-      await api.setup(username, password);
+      await api.setup(username, password, setupToken.trim());
       onComplete();
     } catch (caught) {
       setError(
@@ -40,6 +41,21 @@ export function Setup({ onComplete }: { onComplete: () => void }) {
       subtitle="Создайте администратора Music Cloud. Это займёт минуту."
     >
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-medium">Setup-токен</span>
+          <input
+            value={setupToken}
+            onChange={(event) => setSetupToken(event.target.value)}
+            autoComplete="off"
+            required
+            className="mc-field font-mono"
+          />
+          <span className="block text-xs text-muted-foreground">
+            Токен печатается в логах mc-api при первом запуске:
+            <code className="ml-1">docker compose logs mc-api | grep setup_token</code>
+          </span>
+        </label>
+
         <label className="block space-y-1.5 text-sm">
           <span className="font-medium">Логин</span>
           <input
