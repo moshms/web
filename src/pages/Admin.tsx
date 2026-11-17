@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusDot } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import { can, canAnyLibrary, P } from "@/permissions";
+import { useToast } from "@/toast";
 
 const inputClass = "mc-field";
 
@@ -46,6 +47,7 @@ function Section({ show, children }: { show: boolean; children: ReactNode }) {
 
 export function AdminPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") ?? "overview";
   const canScans = can(user, P.RUN_SCANS);
@@ -121,7 +123,14 @@ export function AdminPage() {
     setBusy(true);
     setError(null);
     try {
-      setScanResults(await api.admin.scan());
+      if (features?.worker) {
+        await api.admin.scanAsync();
+        setScanResults(null);
+        toast("Скан поставлен в очередь");
+        await load();
+      } else {
+        setScanResults(await api.admin.scan());
+      }
     } catch (caught) {
       showError(caught);
     } finally {

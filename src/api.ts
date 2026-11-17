@@ -402,6 +402,7 @@ export const api = {
     remove(`/api/v1/playlists/${id}/permissions/${targetType}/${targetId}`),
   admin: {
     scan: () => post<LibraryScanResult[]>("/api/v1/admin/scan"),
+    scanAsync: () => post<{ job_id: string }>("/api/v1/admin/scan/async"),
     storages: () => request<Storage[]>("/api/v1/admin/storages"),
     createStorage: (body: {
       name: string;
