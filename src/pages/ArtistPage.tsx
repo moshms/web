@@ -29,17 +29,16 @@ export function ArtistPage() {
       return;
     }
     try {
-      const [artists, loadedAlbums, favorites] = await Promise.all([
+      const [artists, loadedAlbums, favorites, loadedTracks] = await Promise.all([
         api.artists(),
         api.albums(artistId),
         api.favorites(),
+        api.artistTracks(artistId),
       ]);
       setArtist(artists.find((item) => item.id === artistId) ?? null);
       setAlbums(loadedAlbums);
       setStarred(favorites.artists.some((item) => item.id === artistId));
-
-      const details = await Promise.all(loadedAlbums.map((album) => api.album(album.id)));
-      setTracks(details.flatMap((detail) => detail.tracks));
+      setTracks(loadedTracks);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить исполнителя");
     }

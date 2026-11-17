@@ -171,6 +171,15 @@ export type CreatedToken = {
   token: string;
 };
 
+export type SessionInfo = {
+  id: string;
+  client_name: string | null;
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  current: boolean;
+};
+
 export type SetupStatus = {
   required: boolean;
   token_required: boolean;
@@ -295,6 +304,12 @@ export const api = {
   logout: () => post<void>("/api/v1/auth/logout"),
   me: () => request<User>("/api/v1/auth/me"),
   subsonicCredentials: () => request<SubsonicCredentials>("/api/v1/auth/subsonic"),
+  rotateSubsonic: () => post<SubsonicCredentials>("/api/v1/auth/subsonic/rotate"),
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    post<void>("/api/v1/auth/password", body),
+  sessions: () => request<SessionInfo[]>("/api/v1/auth/sessions"),
+  deleteOtherSessions: () => remove("/api/v1/auth/sessions"),
+  deleteSession: (id: string) => remove(`/api/v1/auth/sessions/${id}`),
   tokens: () => request<ApiToken[]>("/api/v1/auth/tokens"),
   createToken: (body: { name: string; expires_in_days?: number }) =>
     post<CreatedToken>("/api/v1/auth/tokens", body),
@@ -303,6 +318,8 @@ export const api = {
   features: () => request<Features>("/api/v1/features"),
   libraries: () => request<Library[]>("/api/v1/libraries"),
   artists: () => request<Artist[]>("/api/v1/artists"),
+  artistTracks: (artistId: string) =>
+    request<Track[]>(`/api/v1/artists/${artistId}/tracks`),
   albums: (artistId?: string) =>
     request<Album[]>(
       `/api/v1/albums${artistId ? `?artist_id=${encodeURIComponent(artistId)}` : ""}`,
