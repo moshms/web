@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Copy, KeyRound, Loader2, LogOut, Moon, Smartphone, Sun, Monitor, Trash2 } from "lucide-react";
+import { Copy, KeyRound, Loader2, LogOut, Moon, Sun, Monitor, ShieldCheck, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { api, ApiError, type ApiToken, type CreatedToken, type SubsonicCredentials } from "@/api";
+import { api, ApiError, type ApiToken, type CreatedToken, type SessionInfo, type SubsonicCredentials } from "@/api";
 import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -21,6 +21,11 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [subsonic, setSubsonic] = useState<SubsonicCredentials | null>(null);
   const [tokens, setTokens] = useState<ApiToken[]>([]);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [securityBusy, setSecurityBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [tokenName, setTokenName] = useState("");
@@ -32,12 +37,14 @@ export function ProfilePage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [credentials, loadedTokens] = await Promise.all([
+      const [credentials, loadedTokens, loadedSessions] = await Promise.all([
         api.subsonicCredentials(),
         api.tokens(),
+        api.sessions(),
       ]);
       setSubsonic(credentials);
       setTokens(loadedTokens);
+      setSessions(loadedSessions);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить профиль");
     } finally {
@@ -91,6 +98,67 @@ export function ProfilePage() {
       toast("Токен удалён");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Не удалось удалить токен");
+    }
+  };
+
+  const changePassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError("Новые пароли не совпадают");
+      return;
+    }
+    setSecurityBusy(true);
+    setError(null);
+    try {
+      await api.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast("Пароль изменён. Войдите снова.");
+      await logout();
+      navigate("/login");
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось изменить пароль");
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const revokeSession = async (session: SessionInfo) => {
+    setSecurityBusy(true);
+    try {
+      await api.deleteSession(session.id);
+      setSessions(await api.sessions());
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось отозвать сессию");
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const revokeOtherSessions = async () => {
+    setSecurityBusy(true);
+    try {
+      await api.deleteOtherSessions();
+      setSessions(await api.sessions());
+      toast("Остальные сессии отозваны");
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось отозвать сессии");
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const rotateSubsonic = async () => {
+    setSecurityBusy(true);
+    try {
+      const credentials = await api.rotateSubsonic();
+      setSubsonic(credentials);
+      toast("Subsonic-пароль обновлён");
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось обновить пароль");
+    } finally {
+      setSecurityBusy(false);
     }
   };
 
@@ -173,7 +241,11 @@ export function ProfilePage() {
           <CardHeader
             title="Подключение приложений"
             description="Subsonic / OpenSubsonic"
-            action={<Smartphone className="h-4 w-4 text-muted-foreground" />}
+            action={
+              <Button variant="outline" size="sm" onClick={() => void rotateSubsonic()} disabled={securityBusy}>
+                Обновить пароль
+              </Button>
+            }
           />
           <CardContent className="space-y-3">
             {loading ? (
@@ -257,6 +329,90 @@ export function ProfilePage() {
             )}
           </CardContent>
         </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader
+            title="Безопасность"
+            description="Пароль и активные сессии"
+            action={<ShieldCheck className="h-4 w-4 text-muted-foreground" />}
+          />
+          <CardContent className="grid gap-5 lg:grid-cols-2">
+            <form onSubmit={(event) => void changePassword(event)} className="space-y-3">
+              <h3 className="text-sm font-medium">Сменить пароль</h3>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="Текущий пароль"
+                autoComplete="current-password"
+                required
+              />
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Новый пароль, минимум 12 символов"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Повторите новый пароль"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+              <Button type="submit" disabled={securityBusy}>
+                Сменить пароль
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                После смены пароля все сессии и API-токены будут отозваны.
+              </p>
+            </form>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-medium">Активные сессии</h3>
+                <Button variant="outline" size="sm" onClick={() => void revokeOtherSessions()} disabled={securityBusy}>
+                  Выйти везде
+                </Button>
+              </div>
+              <div className="divide-y divide-border">
+                {sessions.map((session) => (
+                  <div key={session.id} className="flex items-center gap-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">
+                        {session.client_name ?? "Неизвестное устройство"}
+                        {session.current && <span className="ml-2 text-xs text-muted-foreground">текущая</span>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(session.last_seen_at).toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                    {!session.current && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => void revokeSession(session)}
+                        disabled={securityBusy}
+                        aria-label="Отозвать сессию"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {sessions.length === 0 && (
+                  <p className="py-2 text-sm text-muted-foreground">Нет активных сессий.</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
 
       <Dialog
