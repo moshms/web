@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Grid2X2, List, Loader2, Play, Search, Upload } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -20,11 +20,16 @@ import { cn } from "@/lib/utils";
 type View = "albums" | "artists";
 type Sort = "name" | "year" | "artist";
 
+const PAGE_SIZE = 100;
+
 export function LibraryPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [artistTotal, setArtistTotal] = useState(0);
+  const [albumTotal, setAlbumTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState<View | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [sort, setSort] = useState<Sort>("name");
@@ -36,10 +41,15 @@ export function LibraryPage() {
   const canUpload = canAnyLibrary(user, P.LIBRARY_UPLOAD);
 
   useEffect(() => {
-    Promise.all([api.artists(), api.albums()])
-      .then(([loadedArtists, loadedAlbums]) => {
-        setArtists(loadedArtists);
-        setAlbums(loadedAlbums);
+    Promise.all([
+      api.artistsPage({ limit: PAGE_SIZE, offset: 0 }),
+      api.albumsPage({ limit: PAGE_SIZE, offset: 0, sort: "name" }),
+    ])
+      .then(([artistPage, albumPage]) => {
+        setArtists(artistPage.items);
+        setArtistTotal(artistPage.total);
+        setAlbums(albumPage.items);
+        setAlbumTotal(albumPage.total);
       })
       .catch((caught) =>
         setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить библиотеку"),
@@ -47,27 +57,44 @@ export function LibraryPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const sortedAlbums = useMemo(() => {
-    const copy = [...albums];
-    copy.sort((left, right) => {
-      if (sort === "year") {
-        return right.year - left.year || left.title.localeCompare(right.title);
-      }
-      if (sort === "artist") {
-        return (
-          left.album_artist.localeCompare(right.album_artist) ||
-          left.title.localeCompare(right.title)
-        );
-      }
-      return left.title.localeCompare(right.title);
-    });
-    return copy;
-  }, [albums, sort]);
+  const changeSort = async (next: Sort) => {
+    setSort(next);
+    setLoading(true);
+    setError(null);
+    try {
+      const page = await api.albumsPage({ limit: PAGE_SIZE, offset: 0, sort: next });
+      setAlbums(page.items);
+      setAlbumTotal(page.total);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить альбомы");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const sortedArtists = useMemo(
-    () => [...artists].sort((left, right) => left.name.localeCompare(right.name)),
-    [artists],
-  );
+  const loadMore = async () => {
+    setLoadingMore(view);
+    setError(null);
+    try {
+      if (view === "albums") {
+        const page = await api.albumsPage({
+          limit: PAGE_SIZE,
+          offset: albums.length,
+          sort,
+        });
+        setAlbums((current) => [...current, ...page.items]);
+        setAlbumTotal(page.total);
+      } else {
+        const page = await api.artistsPage({ limit: PAGE_SIZE, offset: artists.length });
+        setArtists((current) => [...current, ...page.items]);
+        setArtistTotal(page.total);
+      }
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить ещё");
+    } finally {
+      setLoadingMore(null);
+    }
+  };
 
   const playAlbum = async (album: Album) => {
     setBusyId(album.id);
@@ -99,14 +126,15 @@ export function LibraryPage() {
     }
   };
 
-  const trackCount = artists.reduce((sum, artist) => sum + artist.track_count, 0);
-  const current = view === "albums" ? sortedAlbums : sortedArtists;
+  const current = view === "albums" ? albums : artists;
+  const currentTotal = view === "albums" ? albumTotal : artistTotal;
+  const canLoadMore = current.length < currentTotal;
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Библиотека"
-        description={`${artists.length} исполнителей · ${albums.length} альбомов · ${trackCount} треков`}
+        description={`${artistTotal} исполнителей · ${albumTotal} альбомов`}
         actions={
           canUpload ? (
             <Button asChild variant="outline">
@@ -133,15 +161,15 @@ export function LibraryPage() {
           value={view}
           onChange={(next) => setParams({ view: next })}
           items={[
-            { value: "albums", label: "Альбомы", count: albums.length },
-            { value: "artists", label: "Исполнители", count: artists.length },
+            { value: "albums", label: "Альбомы", count: albumTotal },
+            { value: "artists", label: "Исполнители", count: artistTotal },
           ]}
           className="w-full sm:min-w-0 sm:flex-1"
         />
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <Select
             value={sort}
-            onChange={(event) => setSort(event.target.value as Sort)}
+            onChange={(event) => void changeSort(event.target.value as Sort)}
             aria-label="Сортировка"
             className="w-36"
           >
@@ -198,7 +226,7 @@ export function LibraryPage() {
       ) : layout === "grid" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {view === "albums"
-            ? sortedAlbums.map((album) => (
+            ? albums.map((album) => (
                 <AlbumCard
                   key={album.id}
                   album={album}
@@ -206,7 +234,7 @@ export function LibraryPage() {
                   onPlay={() => void playAlbum(album)}
                 />
               ))
-            : sortedArtists.map((artist) => (
+            : artists.map((artist) => (
                 <ArtistCard
                   key={artist.id}
                   artist={artist}
@@ -218,7 +246,7 @@ export function LibraryPage() {
       ) : (
         <div className="mc-surface divide-y divide-border overflow-hidden">
           {view === "albums"
-            ? sortedAlbums.map((album) => (
+            ? albums.map((album) => (
                 <div
                   key={album.id}
                   className="group flex items-center gap-3 px-3 py-2 hover:bg-muted/50"
@@ -254,7 +282,7 @@ export function LibraryPage() {
                   </Button>
                 </div>
               ))
-            : sortedArtists.map((artist) => (
+            : artists.map((artist) => (
                 <div
                   key={artist.id}
                   className="group flex items-center gap-3 px-3 py-2 hover:bg-muted/50"
@@ -283,6 +311,19 @@ export function LibraryPage() {
                   </Button>
                 </div>
               ))}
+        </div>
+      )}
+
+      {canLoadMore && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            onClick={() => void loadMore()}
+            disabled={loadingMore !== null}
+          >
+            {loadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Показать ещё
+          </Button>
         </div>
       )}
     </div>

@@ -272,6 +272,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+export type Page<T> = {
+  items: T;
+  total: number;
+};
+
+async function requestPage<T>(path: string): Promise<Page<T>> {
+  const response = await fetch(path);
+
+  if (!response.ok) {
+    let message = response.statusText || "Request failed";
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body.error) {
+        message = body.error;
+      }
+    } catch {
+      // ignore malformed error bodies
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return {
+    items: (await response.json()) as T,
+    total: Number(response.headers.get("X-Total-Count") ?? 0),
+  };
+}
+
 function post<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, {
     method: "POST",
@@ -318,12 +345,32 @@ export const api = {
   features: () => request<Features>("/api/v1/features"),
   libraries: () => request<Library[]>("/api/v1/libraries"),
   artists: () => request<Artist[]>("/api/v1/artists"),
+  artistsPage: (params: { limit: number; offset: number }) =>
+    requestPage<Artist[]>(
+      `/api/v1/artists?limit=${params.limit}&offset=${params.offset}`,
+    ),
   artistTracks: (artistId: string) =>
     request<Track[]>(`/api/v1/artists/${artistId}/tracks`),
   albums: (artistId?: string) =>
     request<Album[]>(
       `/api/v1/albums${artistId ? `?artist_id=${encodeURIComponent(artistId)}` : ""}`,
     ),
+  albumsPage: (params: {
+    limit: number;
+    offset: number;
+    sort: string;
+    artistId?: string;
+  }) => {
+    const query = new URLSearchParams({
+      limit: String(params.limit),
+      offset: String(params.offset),
+      sort: params.sort,
+    });
+    if (params.artistId) {
+      query.set("artist_id", params.artistId);
+    }
+    return requestPage<Album[]>(`/api/v1/albums?${query.toString()}`);
+  },
   album: (id: string) => request<AlbumDetail>(`/api/v1/albums/${id}`),
   search: (query: string) =>
     request<SearchResults>(`/api/v1/search?q=${encodeURIComponent(query)}`),
