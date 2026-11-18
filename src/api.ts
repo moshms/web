@@ -51,6 +51,12 @@ export type AuditRecord = {
   created_at: string;
 };
 
+export type Genre = {
+  id: string;
+  name: string;
+  track_count: number;
+};
+
 export type Artist = {
   id: string;
   name: string;
@@ -345,10 +351,14 @@ export const api = {
   features: () => request<Features>("/api/v1/features"),
   libraries: () => request<Library[]>("/api/v1/libraries"),
   artists: () => request<Artist[]>("/api/v1/artists"),
-  artistsPage: (params: { limit: number; offset: number }) =>
-    requestPage<Artist[]>(
-      `/api/v1/artists?limit=${params.limit}&offset=${params.offset}`,
-    ),
+  artistsPage: (params: { limit: number; offset: number; libraryId?: string }) => {
+    const query = new URLSearchParams({
+      limit: String(params.limit),
+      offset: String(params.offset),
+    });
+    if (params.libraryId) query.set("library_id", params.libraryId);
+    return requestPage<Artist[]>(`/api/v1/artists?${query.toString()}`);
+  },
   artistTracks: (artistId: string) =>
     request<Track[]>(`/api/v1/artists/${artistId}/tracks`),
   albums: (artistId?: string) =>
@@ -360,6 +370,7 @@ export const api = {
     offset: number;
     sort: string;
     artistId?: string;
+    libraryId?: string;
   }) => {
     const query = new URLSearchParams({
       limit: String(params.limit),
@@ -369,8 +380,29 @@ export const api = {
     if (params.artistId) {
       query.set("artist_id", params.artistId);
     }
+    if (params.libraryId) {
+      query.set("library_id", params.libraryId);
+    }
     return requestPage<Album[]>(`/api/v1/albums?${query.toString()}`);
   },
+  tracksPage: (params: {
+    limit: number;
+    offset: number;
+    libraryId?: string;
+    genreId?: string;
+  }) => {
+    const query = new URLSearchParams({
+      limit: String(params.limit),
+      offset: String(params.offset),
+    });
+    if (params.libraryId) query.set("library_id", params.libraryId);
+    if (params.genreId) query.set("genre_id", params.genreId);
+    return requestPage<Track[]>(`/api/v1/tracks?${query.toString()}`);
+  },
+  genres: (libraryId?: string) =>
+    request<Genre[]>(
+      `/api/v1/genres${libraryId ? `?library_id=${encodeURIComponent(libraryId)}` : ""}`,
+    ),
   album: (id: string) => request<AlbumDetail>(`/api/v1/albums/${id}`),
   search: (query: string) =>
     request<SearchResults>(`/api/v1/search?q=${encodeURIComponent(query)}`),

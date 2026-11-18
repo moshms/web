@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Grid2X2, List, Loader2, Play, Search, Upload } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { api, ApiError, type Album, type Artist } from "@/api";
+import { api, ApiError, type Album, type Artist, type Genre, type Library, type Track } from "@/api";
 import { useAuth } from "@/auth";
 import { Artwork } from "@/components/Artwork";
 import { AlbumCard, ArtistCard } from "@/components/MediaCard";
+import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -17,7 +18,7 @@ import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
 
-type View = "albums" | "artists";
+type View = "albums" | "artists" | "tracks" | "genres";
 type Sort = "name" | "year" | "artist";
 
 const PAGE_SIZE = 100;
@@ -25,8 +26,14 @@ const PAGE_SIZE = 100;
 export function LibraryPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [libraries, setLibraries] = useState<Library[]>([]);
   const [artistTotal, setArtistTotal] = useState(0);
   const [albumTotal, setAlbumTotal] = useState(0);
+  const [trackTotal, setTrackTotal] = useState(0);
+  const [libraryFilter, setLibraryFilter] = useState("");
+  const [genreFilter, setGenreFilter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState<View | null>(null);
@@ -34,7 +41,9 @@ export function LibraryPage() {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [sort, setSort] = useState<Sort>("name");
   const [params, setParams] = useSearchParams();
-  const view = (params.get("view") === "artists" ? "artists" : "albums") as View;
+  const rawView = params.get("view");
+  const view: View =
+    rawView === "artists" || rawView === "tracks" || rawView === "genres" ? rawView : "albums";
   const playTrack = usePlayer((state) => state.playTrack);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -42,52 +51,105 @@ export function LibraryPage() {
 
   useEffect(() => {
     Promise.all([
-      api.artistsPage({ limit: PAGE_SIZE, offset: 0 }),
-      api.albumsPage({ limit: PAGE_SIZE, offset: 0, sort: "name" }),
+      api.libraries(),
+      api.albumsPage({ limit: 1, offset: 0, sort: "name" }),
+      api.artistsPage({ limit: 1, offset: 0 }),
+      api.tracksPage({ limit: 1, offset: 0 }),
     ])
-      .then(([artistPage, albumPage]) => {
-        setArtists(artistPage.items);
-        setArtistTotal(artistPage.total);
-        setAlbums(albumPage.items);
+      .then(([loadedLibraries, albumPage, artistPage, trackPage]) => {
+        setLibraries(loadedLibraries);
         setAlbumTotal(albumPage.total);
+        setArtistTotal(artistPage.total);
+        setTrackTotal(trackPage.total);
       })
-      .catch((caught) =>
-        setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить библиотеку"),
-      )
-      .finally(() => setLoading(false));
+      .catch(() => undefined);
   }, []);
 
-  const changeSort = async (next: Sort) => {
-    setSort(next);
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    try {
-      const page = await api.albumsPage({ limit: PAGE_SIZE, offset: 0, sort: next });
-      setAlbums(page.items);
-      setAlbumTotal(page.total);
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить альбомы");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const libraryId = libraryFilter || undefined;
+
+    const load = async () => {
+      try {
+        if (view === "albums") {
+          const page = await api.albumsPage({ limit: PAGE_SIZE, offset: 0, sort, libraryId });
+          if (!cancelled) {
+            setAlbums(page.items);
+            setAlbumTotal(page.total);
+          }
+        } else if (view === "artists") {
+          const page = await api.artistsPage({ limit: PAGE_SIZE, offset: 0, libraryId });
+          if (!cancelled) {
+            setArtists(page.items);
+            setArtistTotal(page.total);
+          }
+        } else if (view === "tracks") {
+          const page = await api.tracksPage({
+            limit: PAGE_SIZE,
+            offset: 0,
+            libraryId,
+            genreId: genreFilter ?? undefined,
+          });
+          if (!cancelled) {
+            setTracks(page.items);
+            setTrackTotal(page.total);
+          }
+        } else {
+          const loaded = await api.genres(libraryId);
+          if (!cancelled) {
+            setGenres(loaded);
+          }
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить библиотеку");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [view, libraryFilter, sort, genreFilter]);
 
   const loadMore = async () => {
     setLoadingMore(view);
     setError(null);
+    const libraryId = libraryFilter || undefined;
     try {
       if (view === "albums") {
         const page = await api.albumsPage({
           limit: PAGE_SIZE,
           offset: albums.length,
           sort,
+          libraryId,
         });
         setAlbums((current) => [...current, ...page.items]);
         setAlbumTotal(page.total);
-      } else {
-        const page = await api.artistsPage({ limit: PAGE_SIZE, offset: artists.length });
+      } else if (view === "artists") {
+        const page = await api.artistsPage({
+          limit: PAGE_SIZE,
+          offset: artists.length,
+          libraryId,
+        });
         setArtists((current) => [...current, ...page.items]);
         setArtistTotal(page.total);
+      } else if (view === "tracks") {
+        const page = await api.tracksPage({
+          limit: PAGE_SIZE,
+          offset: tracks.length,
+          libraryId,
+          genreId: genreFilter ?? undefined,
+        });
+        setTracks((current) => [...current, ...page.items]);
+        setTrackTotal(page.total);
       }
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить ещё");
@@ -126,9 +188,18 @@ export function LibraryPage() {
     }
   };
 
-  const current = view === "albums" ? albums : artists;
-  const currentTotal = view === "albums" ? albumTotal : artistTotal;
-  const canLoadMore = current.length < currentTotal;
+  const current =
+    view === "albums" ? albums : view === "artists" ? artists : view === "tracks" ? tracks : genres;
+  const currentTotal =
+    view === "albums"
+      ? albumTotal
+      : view === "artists"
+        ? artistTotal
+        : view === "tracks"
+          ? trackTotal
+          : genres.length;
+  const canLoadMore = view !== "genres" && current.length < currentTotal;
+  const activeGenre = genres.find((genre) => genre.id === genreFilter)?.name;
 
   return (
     <div className="space-y-5">
@@ -163,21 +234,39 @@ export function LibraryPage() {
           items={[
             { value: "albums", label: "Альбомы", count: albumTotal },
             { value: "artists", label: "Исполнители", count: artistTotal },
+            { value: "tracks", label: "Треки", count: trackTotal },
+            { value: "genres", label: "Жанры", count: genres.length },
           ]}
           className="w-full sm:min-w-0 sm:flex-1"
         />
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
           <Select
-            value={sort}
-            onChange={(event) => void changeSort(event.target.value as Sort)}
-            aria-label="Сортировка"
-            className="w-36"
+            value={libraryFilter}
+            onChange={(event) => setLibraryFilter(event.target.value)}
+            aria-label="Библиотека"
+            className="w-44"
           >
-            <option value="name">По названию</option>
-            <option value="year">По году</option>
-            <option value="artist">По исполнителю</option>
+            <option value="">Все библиотеки</option>
+            {libraries.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name}
+              </option>
+            ))}
           </Select>
-          <div className="flex rounded-md border border-border p-0.5">
+          {view === "albums" && (
+            <Select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as Sort)}
+              aria-label="Сортировка"
+              className="w-36"
+            >
+              <option value="name">По названию</option>
+              <option value="year">По году</option>
+              <option value="artist">По исполнителю</option>
+            </Select>
+          )}
+          {(view === "albums" || view === "artists") && (
+            <div className="flex rounded-md border border-border p-0.5">
             <button
               type="button"
               onClick={() => setLayout("grid")}
@@ -201,8 +290,18 @@ export function LibraryPage() {
               <List className="h-4 w-4" />
             </button>
           </div>
+          )}
         </div>
       </div>
+
+      {activeGenre && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          Жанр: <span className="text-foreground">{activeGenre}</span>
+          <Button variant="ghost" size="sm" onClick={() => setGenreFilter(null)}>
+            Сбросить
+          </Button>
+        </div>
+      )}
 
       {error && (
         <div className="mc-surface border-destructive/30 p-4 text-sm text-destructive">{error}</div>
@@ -223,6 +322,30 @@ export function LibraryPage() {
           title="Здесь пока пусто"
           description="Загрузите музыку или запустите скан библиотеки."
         />
+      ) : view === "tracks" ? (
+        <div className="mc-surface overflow-hidden px-2">
+          <TrackList
+            tracks={tracks}
+            onPlay={(track, queue) => playTrack(track, queue)}
+          />
+        </div>
+      ) : view === "genres" ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {genres.map((genre) => (
+            <button
+              key={genre.id}
+              type="button"
+              onClick={() => {
+                setGenreFilter(genre.id);
+                setParams({ view: "tracks" });
+              }}
+              className="mc-surface p-4 text-left transition-colors hover:bg-muted/50"
+            >
+              <p className="truncate text-sm font-medium">{genre.name}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{genre.track_count} треков</p>
+            </button>
+          ))}
+        </div>
       ) : layout === "grid" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {view === "albums"
