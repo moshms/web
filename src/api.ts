@@ -390,6 +390,9 @@ export const api = {
     offset: number;
     libraryId?: string;
     genreId?: string;
+    missingArtwork?: boolean;
+    missingYear?: boolean;
+    mine?: boolean;
   }) => {
     const query = new URLSearchParams({
       limit: String(params.limit),
@@ -397,6 +400,9 @@ export const api = {
     });
     if (params.libraryId) query.set("library_id", params.libraryId);
     if (params.genreId) query.set("genre_id", params.genreId);
+    if (params.missingArtwork) query.set("missing_artwork", "true");
+    if (params.missingYear) query.set("missing_year", "true");
+    if (params.mine) query.set("mine", "true");
     return requestPage<Track[]>(`/api/v1/tracks?${query.toString()}`);
   },
   genres: (libraryId?: string) =>
@@ -404,6 +410,7 @@ export const api = {
       `/api/v1/genres${libraryId ? `?library_id=${encodeURIComponent(libraryId)}` : ""}`,
     ),
   album: (id: string) => request<AlbumDetail>(`/api/v1/albums/${id}`),
+  albumZipUrl: (id: string) => `/api/v1/albums/${id}/download`,
   search: (query: string) =>
     request<SearchResults>(`/api/v1/search?q=${encodeURIComponent(query)}`),
 
