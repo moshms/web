@@ -150,6 +150,7 @@ export function AlbumPage() {
         backLabel={album.album_artist}
         artwork={
           <Artwork
+            size={600}
             albumId={album.artwork_id ? album.id : null}
             title={album.title}
             className="h-full w-full"

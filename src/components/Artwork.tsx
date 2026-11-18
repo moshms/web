@@ -7,11 +7,18 @@ import { cn } from "@/lib/utils";
 type ArtworkProps = {
   albumId?: string | null;
   title: string;
+  size?: number;
   className?: string;
   iconClassName?: string;
 };
 
-export function Artwork({ albumId, title, className, iconClassName }: ArtworkProps) {
+export function Artwork({
+  albumId,
+  title,
+  size = 300,
+  className,
+  iconClassName,
+}: ArtworkProps) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -27,7 +34,7 @@ export function Artwork({ albumId, title, className, iconClassName }: ArtworkPro
     >
       {albumId && !failed ? (
         <img
-          src={api.artworkUrl(albumId)}
+          src={api.artworkUrl(albumId, size)}
           alt={title}
           loading="lazy"
           onError={() => setFailed(true)}
