@@ -429,7 +429,8 @@ export const api = {
 
   streamUrl: (trackId: string) => `/api/v1/stream/${trackId}`,
   downloadUrl: (trackId: string) => `/api/v1/download/${trackId}`,
-  artworkUrl: (albumId: string) => `/api/v1/artwork/${albumId}`,
+  artworkUrl: (albumId: string, size?: number) =>
+    `/api/v1/artwork/${albumId}${size ? `?size=${size}` : ""}`,
 
   roles: () => request<RoleRecord[]>("/api/v1/roles"),
   permissionCatalog: () => request<PermissionInfo[]>("/api/v1/permissions"),

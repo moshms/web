@@ -219,7 +219,7 @@ export function Player() {
       artist: track.artist ?? "",
       album: track.album ?? "",
       artwork: track.album_id
-        ? [{ src: api.artworkUrl(track.album_id), sizes: "512x512", type: "image/png" }]
+        ? [{ src: api.artworkUrl(track.album_id, 600), sizes: "512x512", type: "image/webp" }]
         : [],
     });
     navigator.mediaSession.setActionHandler("play", () => setPlaying(true));
