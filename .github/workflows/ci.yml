@@ -23,3 +23,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  nginx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: moshms/gateway
+          ref: main
+          path: upstream
+          token: ${{ secrets.GATEWAY_READ_KEY }}
+      - name: Check nginx config drift
+        run: |
+          diff -u upstream/default.conf nginx/default.conf
+          diff -u upstream/tls.conf nginx/tls.conf
+          diff -u upstream/locations.conf nginx/locations.conf
+          diff -u upstream/nginx-entrypoint.sh nginx/nginx-entrypoint.sh
