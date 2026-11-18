@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   AudioLines,
   ChevronDown,
@@ -24,72 +17,21 @@ import {
   Trash2,
   Volume2,
   VolumeX,
-  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { api, type Features, type Track } from "@/api";
+import { api, type Features, type SubsonicCredentials } from "@/api";
 import { useAuth } from "@/auth";
 import { AlbumEditDialog } from "@/components/AlbumEditDialog";
 import { TrackEditDialog } from "@/components/TrackEditDialog";
 import { Artwork } from "@/components/Artwork";
+import { Equalizer, Overlay, QueueRow, formatTime } from "@/components/player-parts";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { canLibrary, P } from "@/permissions";
 import { usePlayer } from "@/player";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
-
-function formatTime(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return "0:00";
-  }
-  const minutes = Math.floor(seconds / 60);
-  const rest = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${minutes}:${rest}`;
-}
-
-function Equalizer({ playing }: { playing: boolean }) {
-  return (
-    <span className="flex h-3 items-end gap-0.5" aria-hidden="true">
-      {[0, 1, 2].map((bar) => (
-        <span
-          key={bar}
-          className={cn(
-            "w-0.5 rounded-full bg-current transition-all",
-            playing ? "animate-pulse" : "h-1",
-          )}
-          style={
-            playing
-              ? { height: `${4 + ((bar * 5) % 8)}px`, animationDelay: `${bar * 140}ms` }
-              : undefined
-          }
-        />
-      ))}
-    </span>
-  );
-}
-
-function Overlay({ children, onClose }: { children: ReactNode; onClose: () => void }) {
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !document.querySelector('[role="dialog"]')) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
-  return createPortal(children, document.body);
-}
 
 export function Player() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -124,6 +66,9 @@ export function Player() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [trackEditOpen, setTrackEditOpen] = useState(false);
+  const [quality, setQuality] = useState(() => localStorage.getItem("mc-quality") ?? "original");
+  const [subsonic, setSubsonic] = useState<SubsonicCredentials | null>(null);
+  const previousTrackId = useRef<string | null>(null);
 
   const canEditTrack = Boolean(
     features?.tag_editor &&
@@ -146,6 +91,10 @@ export function Player() {
       .favorites()
       .then((favorites) => setStarred(new Set(favorites.tracks.map((item) => item.id))))
       .catch(() => undefined);
+    api
+      .subsonicCredentials()
+      .then(setSubsonic)
+      .catch(() => setSubsonic(null));
   }, []);
 
   useEffect(() => {
@@ -158,12 +107,36 @@ export function Player() {
       audio.load();
       return;
     }
-    audio.src = api.streamUrl(track.id);
-    audio.load();
-    if (usePlayer.getState().playing) {
-      void audio.play().catch(() => setPlaying(false));
+    const trackChanged = previousTrackId.current !== track.id;
+    previousTrackId.current = track.id;
+    const position = trackChanged ? 0 : audio.currentTime;
+    const wasPlaying = usePlayer.getState().playing;
+    if (quality !== "original" && subsonic) {
+      const params = new URLSearchParams({
+        id: track.id,
+        u: subsonic.username,
+        p: subsonic.password,
+        format: "mp3",
+        maxBitRate: quality,
+        v: "1.16.1",
+        c: "music-cloud-web",
+      });
+      audio.src = `/rest/stream?${params.toString()}`;
+    } else {
+      audio.src = api.streamUrl(track.id);
     }
-  }, [track?.id, setPlaying]);
+    audio.load();
+    const onLoaded = () => {
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      if (position > 0 && Number.isFinite(audio.duration) && audio.duration > 0) {
+        audio.currentTime = Math.min(position, Math.max(0, audio.duration - 0.5));
+      }
+      if (wasPlaying) {
+        void audio.play().catch(() => setPlaying(false));
+      }
+    };
+    audio.addEventListener("loadedmetadata", onLoaded);
+  }, [track?.id, quality, subsonic, setPlaying]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -491,6 +464,22 @@ export function Player() {
                 aria-label="Громкость"
               />
             </div>
+            <select
+              value={quality}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuality(value);
+                localStorage.setItem("mc-quality", value);
+              }}
+              className="h-8 rounded-md border border-border bg-card px-1.5 text-xs text-muted-foreground"
+              aria-label="Качество звука"
+              title="Качество звука"
+            >
+              <option value="original">Оригинал</option>
+              <option value="320">MP3 320</option>
+              <option value="192">MP3 192</option>
+              <option value="128">MP3 128</option>
+            </select>
             <Button
               variant="ghost"
               size="icon"
@@ -784,58 +773,3 @@ export function Player() {
   );
 }
 
-function QueueRow({
-  track,
-  active,
-  playing,
-  onClick,
-  onRemove,
-  dark,
-}: {
-  track: Track;
-  active: boolean;
-  playing: boolean;
-  onClick: () => void;
-  onRemove: () => void;
-  dark?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "group flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
-        active ? (dark ? "bg-white/10" : "bg-accent") : dark ? "hover:bg-white/5" : "hover:bg-muted/60",
-      )}
-    >
-      <button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
-        <span className={cn("flex w-5 shrink-0 items-center justify-center", dark ? "text-white/40" : "text-muted-foreground")}>
-          {active ? <Equalizer playing={playing} /> : null}
-        </span>
-        <Artwork
-          albumId={track.album_id}
-          title={track.album ?? track.title}
-          className="h-8 w-8 shrink-0 rounded-md"
-          iconClassName="h-4 w-4"
-        />
-        <div className="min-w-0">
-          <p className={cn("truncate text-sm", active && (dark ? "font-medium text-white" : "font-medium text-foreground"))}>
-            {track.title}
-          </p>
-          <p className={cn("truncate text-xs", dark ? "text-white/50" : "text-muted-foreground")}>
-            {track.artist ?? "Неизвестный исполнитель"}
-          </p>
-        </div>
-      </button>
-      <button
-        type="button"
-        onClick={onRemove}
-        className={cn(
-          "rounded-md p-1.5 opacity-0 transition group-hover:opacity-100",
-          dark ? "text-white/40 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
-        )}
-        aria-label="Убрать из очереди"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}

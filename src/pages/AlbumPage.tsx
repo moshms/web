@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Heart, Pencil, Play, Shuffle } from "lucide-react";
+import { Download, Heart, Pencil, Play, Shuffle } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -196,6 +196,12 @@ export function AlbumPage() {
               title={albumStarred ? "Убрать из избранного" : "В избранное"}
             >
               <Heart className={cn("h-4 w-4", albumStarred && "fill-foreground")} />
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <a href={api.albumZipUrl(album.id)} download>
+                <Download className="mr-2 h-4 w-4" />
+                Скачать
+              </a>
             </Button>
             {canEdit && (
               <Button variant="outline" size="lg" onClick={() => setEditOpen(true)}>

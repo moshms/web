@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Check, Music2, Search } from "lucide-react";
+import { Check, Loader2, Music2, Search } from "lucide-react";
 
 import {
   api,
@@ -37,6 +37,17 @@ export function TagEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filters, setFilters] = useState({
+    missingArtwork: false,
+    missingYear: false,
+    mine: false,
+  });
+  const [candidates, setCandidates] = useState<Track[]>([]);
+  const [candidateLoading, setCandidateLoading] = useState(true);
+  const [inline, setInline] = useState<
+    Record<string, { title: string; artist: string; album: string; year: string }>
+  >({});
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const loadEdits = () =>
     api.admin
@@ -50,6 +61,38 @@ export function TagEditorPage() {
     api.features().then(setFeatures).catch(() => setFeatures(null));
     void loadEdits();
   }, []);
+
+  useEffect(() => {
+    setCandidateLoading(true);
+    api
+      .tracksPage({
+        limit: 100,
+        offset: 0,
+        missingArtwork: filters.missingArtwork,
+        missingYear: filters.missingYear,
+        mine: filters.mine,
+      })
+      .then((page) => {
+        setCandidates(page.items);
+        setInline(
+          Object.fromEntries(
+            page.items.map((track) => [
+              track.id,
+              {
+                title: track.title,
+                artist: track.artist ?? "",
+                album: track.album ?? "",
+                year: track.album_year ? String(track.album_year) : "",
+              },
+            ]),
+          ),
+        );
+      })
+      .catch((caught) =>
+        setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить треки"),
+      )
+      .finally(() => setCandidateLoading(false));
+  }, [filters]);
 
   const search = async (event: FormEvent) => {
     event.preventDefault();
@@ -75,6 +118,71 @@ export function TagEditorPage() {
       }
       return next;
     });
+  };
+
+  const updateInline = (track: Track, field: "title" | "artist" | "album" | "year", value: string) => {
+    setInline((current) => ({
+      ...current,
+      [track.id]: { ...current[track.id], [field]: value },
+    }));
+  };
+
+  const saveInline = async (
+    track: Track,
+    field: "title" | "artist" | "album" | "year",
+    value: string,
+  ) => {
+    const original =
+      field === "title"
+        ? track.title
+        : field === "artist"
+          ? (track.artist ?? "")
+          : field === "album"
+            ? (track.album ?? "")
+            : track.album_year
+              ? String(track.album_year)
+              : "";
+    if (value === original) {
+      return;
+    }
+
+    const changes: TagChanges = {};
+    if (field === "year") {
+      const parsed = value.trim() === "" ? 0 : Number(value);
+      if (!Number.isInteger(parsed) || (parsed !== 0 && (parsed < 1000 || parsed > 2100))) {
+        setError("Год должен быть 1000–2100 или пустым");
+        return;
+      }
+      changes.year = parsed;
+    } else {
+      changes[field] = value.trim();
+    }
+
+    setSavingId(track.id);
+    setError(null);
+    try {
+      await api.admin.createTagEdit({ track_ids: [track.id], changes });
+      setMessage("Правка поставлена в очередь воркера");
+      setCandidates((current) =>
+        current.map((item) =>
+          item.id === track.id
+            ? {
+                ...item,
+                title: field === "title" ? value.trim() : item.title,
+                artist: field === "artist" ? value.trim() || null : item.artist,
+                album: field === "album" ? value.trim() || null : item.album,
+                album_year:
+                  field === "year" ? (value.trim() === "" ? null : Number(value)) : item.album_year,
+              }
+            : item,
+        ),
+      );
+      await loadEdits();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось сохранить тег");
+    } finally {
+      setSavingId(null);
+    }
   };
 
   const selectArtwork = (file: File | null) => {
@@ -178,6 +286,105 @@ export function TagEditorPage() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {message && <p className="text-sm text-foreground">{message}</p>}
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="font-medium">Треки для правки</span>
+          <label className="flex items-center gap-1.5 text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={filters.missingArtwork}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, missingArtwork: event.target.checked }))
+              }
+            />
+            Без обложки
+          </label>
+          <label className="flex items-center gap-1.5 text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={filters.missingYear}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, missingYear: event.target.checked }))
+              }
+            />
+            Без года
+          </label>
+          <label className="flex items-center gap-1.5 text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={filters.mine}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, mine: event.target.checked }))
+              }
+            />
+            Загружено мной
+          </label>
+        </div>
+
+        {candidateLoading ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Загружаем треки…
+          </p>
+        ) : candidates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Под выбранные фильтры треков нет.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg bg-card">
+            <table className="w-full min-w-[42rem] text-sm">
+              <thead className="border-b border-border text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="w-10 px-3 py-2" />
+                  <th className="px-3 py-2 font-medium">Название</th>
+                  <th className="px-3 py-2 font-medium">Исполнитель</th>
+                  <th className="px-3 py-2 font-medium">Альбом</th>
+                  <th className="w-24 px-3 py-2 font-medium">Год</th>
+                  <th className="w-16 px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {candidates.map((track) => {
+                  const values = inline[track.id] ?? {
+                    title: track.title,
+                    artist: track.artist ?? "",
+                    album: track.album ?? "",
+                    year: track.album_year ? String(track.album_year) : "",
+                  };
+                  return (
+                    <tr key={track.id} className="hover:bg-muted/30">
+                      <td className="px-3 py-1.5">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(track.id)}
+                          onChange={() => toggle(track.id)}
+                        />
+                      </td>
+                      {(["title", "artist", "album", "year"] as const).map((field) => (
+                        <td key={field} className="px-1.5 py-1.5">
+                          <input
+                            value={values[field]}
+                            onChange={(event) => updateInline(track, field, event.target.value)}
+                            onBlur={(event) => void saveInline(track, field, event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.currentTarget.blur();
+                              }
+                            }}
+                            inputMode={field === "year" ? "numeric" : undefined}
+                            className="mc-field h-8 w-full border-transparent bg-transparent px-1.5"
+                          />
+                        </td>
+                      ))}
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        {savingId === track.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <form onSubmit={(event) => void search(event)} className="flex max-w-xl gap-2">
         <input

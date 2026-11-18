@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Clock3, Library, Pause, Play, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { api, ApiError, type Album, type Favorites, type Artist } from "@/api";
+import { api, ApiError } from "@/api";
 import { Artwork } from "@/components/Artwork";
 import { AlbumCard, ArtistCard } from "@/components/MediaCard";
 import { Button } from "@/components/ui/button";
@@ -40,11 +41,16 @@ function SectionHeader({
 }
 
 export function HomePage() {
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [favorites, setFavorites] = useState<Favorites | null>(null);
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const albumsQuery = useQuery({ queryKey: ["albums"], queryFn: () => api.albums() });
+  const favoritesQuery = useQuery({ queryKey: ["favorites"], queryFn: () => api.favorites() });
+  const artistsQuery = useQuery({ queryKey: ["artists"], queryFn: () => api.artists() });
+  const albums = albumsQuery.data ?? [];
+  const favorites = favoritesQuery.data ?? null;
+  const artists = artistsQuery.data ?? [];
+  const loading =
+    albumsQuery.isLoading || favoritesQuery.isLoading || artistsQuery.isLoading;
+  const error =
+    albumsQuery.error ?? favoritesQuery.error ?? artistsQuery.error;
 
   const queue = usePlayer((state) => state.queue);
   const index = usePlayer((state) => state.index);
@@ -53,19 +59,6 @@ export function HomePage() {
   const duration = usePlayer((state) => state.duration);
   const setPlaying = usePlayer((state) => state.setPlaying);
   const track = queue[index] ?? null;
-
-  useEffect(() => {
-    Promise.all([api.albums(), api.favorites(), api.artists()])
-      .then(([loadedAlbums, loadedFavorites, loadedArtists]) => {
-        setAlbums(loadedAlbums);
-        setFavorites(loadedFavorites);
-        setArtists(loadedArtists);
-      })
-      .catch((caught) =>
-        setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить главную"),
-      )
-      .finally(() => setLoading(false));
-  }, []);
 
   const randomAlbums = useMemo(() => {
     const copy = [...albums];
@@ -94,7 +87,9 @@ export function HomePage() {
       />
 
       {error && (
-        <div className="mc-surface border-destructive/30 p-4 text-sm text-destructive">{error}</div>
+        <div className="mc-surface border-destructive/30 p-4 text-sm text-destructive">
+          {error instanceof ApiError ? error.message : "Не удалось загрузить главную"}
+        </div>
       )}
 
       {loading ? (

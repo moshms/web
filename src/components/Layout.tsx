@@ -18,7 +18,7 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { api, type Playlist } from "@/api";
+import { api, type Playlist, type SearchResults } from "@/api";
 import { useAuth } from "@/auth";
 import { Player } from "@/components/Player";
 import { NavItem } from "@/components/ui/nav-item";
@@ -40,17 +40,56 @@ const mobileNav = [
   { to: "/profile", label: "Профиль", icon: User },
 ];
 
+function SearchSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function SearchLink({
+  to,
+  title,
+  subtitle,
+  onClick,
+}: {
+  to: string;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className="flex items-center justify-between gap-3 rounded px-2 py-1.5 hover:bg-muted"
+    >
+      <span className="min-w-0 truncate">{title}</span>
+      <span className="shrink-0 truncate text-xs text-muted-foreground">{subtitle}</span>
+    </Link>
+  );
+}
+
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("mc-sidebar-collapsed") === "1",
   );
   const [accountOpen, setAccountOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  const [searchBusy, setSearchBusy] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
   const canUpload = canAnyLibrary(user, P.LIBRARY_UPLOAD);
@@ -116,6 +155,38 @@ export function Layout() {
     return () => document.removeEventListener("pointerdown", onPointer);
   }, [accountOpen]);
 
+  useEffect(() => {
+    const onPointer = (event: PointerEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, []);
+
+  useEffect(() => {
+    setSearchValue(new URLSearchParams(location.search).get("q") ?? "");
+  }, [location.search]);
+
+  useEffect(() => {
+    const value = searchValue.trim();
+    if (value.length < 2) {
+      setSearchResults(null);
+      setSearchBusy(false);
+      return;
+    }
+    setSearchBusy(true);
+    const timer = window.setTimeout(() => {
+      api
+        .search(value)
+        .then((results) => setSearchResults(results))
+        .catch(() => setSearchResults(null))
+        .finally(() => setSearchBusy(false));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchValue]);
+
   const signOut = async () => {
     await logout();
     navigate("/login");
@@ -123,8 +194,9 @@ export function Layout() {
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
-    const value = searchRef.current?.value.trim();
+    const value = searchValue.trim();
     if (value) {
+      setSearchOpen(false);
       navigate(`/search?q=${encodeURIComponent(value)}`);
     }
   };
@@ -333,19 +405,85 @@ export function Layout() {
               </button>
             </div>
 
-            <form onSubmit={submitSearch} className="relative min-w-0 flex-1 sm:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                key={location.search}
-                ref={searchRef}
-                defaultValue={new URLSearchParams(location.search).get("q") ?? ""}
-                placeholder="Поиск"
-                className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-14 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/15"
-              />
-              <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground sm:block">
-                Ctrl K
-              </kbd>
-            </form>
+            <div ref={searchBoxRef} className="relative min-w-0 flex-1 sm:max-w-md">
+              <form onSubmit={submitSearch} className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  ref={searchRef}
+                  value={searchValue}
+                  onChange={(event) => {
+                    setSearchValue(event.target.value);
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => setSearchOpen(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setSearchOpen(false);
+                    }
+                  }}
+                  placeholder="Поиск"
+                  className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-14 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/15"
+                />
+                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground sm:block">
+                  Ctrl K
+                </kbd>
+              </form>
+
+              {searchOpen && searchValue.trim().length >= 2 && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-y-auto rounded-md border border-border bg-card p-2 text-sm shadow-lg">
+                  {searchBusy && !searchResults ? (
+                    <p className="px-2 py-3 text-muted-foreground">Ищем…</p>
+                  ) : !searchResults ||
+                    (searchResults.artists.length === 0 &&
+                      searchResults.albums.length === 0 &&
+                      searchResults.tracks.length === 0) ? (
+                    <p className="px-2 py-3 text-muted-foreground">Ничего не найдено</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {searchResults.artists.length > 0 && (
+                        <SearchSection title="Исполнители">
+                          {searchResults.artists.slice(0, 3).map((artist) => (
+                            <SearchLink
+                              key={artist.id}
+                              to={`/artists/${artist.id}`}
+                              title={artist.name}
+                              subtitle={`${artist.album_count} альбомов`}
+                              onClick={() => setSearchOpen(false)}
+                            />
+                          ))}
+                        </SearchSection>
+                      )}
+                      {searchResults.albums.length > 0 && (
+                        <SearchSection title="Альбомы">
+                          {searchResults.albums.slice(0, 3).map((album) => (
+                            <SearchLink
+                              key={album.id}
+                              to={`/albums/${album.id}`}
+                              title={album.title}
+                              subtitle={album.album_artist}
+                              onClick={() => setSearchOpen(false)}
+                            />
+                          ))}
+                        </SearchSection>
+                      )}
+                      {searchResults.tracks.length > 0 && (
+                        <SearchSection title="Треки">
+                          {searchResults.tracks.slice(0, 5).map((track) => (
+                            <SearchLink
+                              key={track.id}
+                              to={track.album_id ? `/albums/${track.album_id}` : "/search"}
+                              title={track.title}
+                              subtitle={track.artist ?? track.album ?? ""}
+                              onClick={() => setSearchOpen(false)}
+                            />
+                          ))}
+                        </SearchSection>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <Link
               to="/profile"
