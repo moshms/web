@@ -3,6 +3,7 @@ import {
   Disc3,
   Download,
   Heart,
+  Info,
   ListEnd,
   ListMusic,
   ListPlus,
@@ -25,6 +26,7 @@ import { Link } from "react-router-dom";
 import { api, type Features, type Playlist, type Track } from "@/api";
 import { useAuth } from "@/auth";
 import { AlbumEditDialog } from "@/components/AlbumEditDialog";
+import { TrackDetailsDialog } from "@/components/TrackDetailsDialog";
 import { TrackEditDialog } from "@/components/TrackEditDialog";
 import { Button } from "@/components/ui/button";
 import { canEditTrack as canEditTrackPermission } from "@/permissions";
@@ -306,6 +308,7 @@ function TrackMenu({
     bottom?: number;
     maxHeight: number;
   } | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -503,6 +506,15 @@ function TrackMenu({
 
             <div className="my-1 h-px bg-border" />
 
+            <MenuItem
+              icon={Info}
+              onClick={() => {
+                setDetailsOpen(true);
+                close();
+              }}
+            >
+              Сведения
+            </MenuItem>
             <MenuAnchor href={api.downloadUrl(track.id)} icon={Download} onClick={close}>
               Скачать
             </MenuAnchor>
@@ -559,6 +571,11 @@ function TrackMenu({
           </div>,
           document.body,
         )}
+      <TrackDetailsDialog
+        trackId={track.id}
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+      />
     </div>
   );
 }

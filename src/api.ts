@@ -94,6 +94,10 @@ export type Track = {
   uploaded_by: string | null;
 };
 
+export type HistoryEntry = Track & {
+  played_at: string;
+};
+
 export type AlbumDetail = Album & {
   tracks: Track[];
 };
@@ -107,6 +111,7 @@ export type SearchResults = {
 export type Playlist = {
   id: string;
   name: string;
+  description: string;
   owner: string;
   is_public: boolean;
   song_count: number;
@@ -409,17 +414,24 @@ export const api = {
     request<Genre[]>(
       `/api/v1/genres${libraryId ? `?library_id=${encodeURIComponent(libraryId)}` : ""}`,
     ),
+  track: (id: string) => request<Track>(`/api/v1/tracks/${id}`),
   album: (id: string) => request<AlbumDetail>(`/api/v1/albums/${id}`),
   albumZipUrl: (id: string) => `/api/v1/albums/${id}/download`,
+  history: () => request<HistoryEntry[]>("/api/v1/history"),
+  scrobble: (trackId: string) =>
+    post<void>(`/api/v1/tracks/${trackId}/scrobble`),
   search: (query: string) =>
     request<SearchResults>(`/api/v1/search?q=${encodeURIComponent(query)}`),
 
   playlists: () => request<Playlist[]>("/api/v1/playlists"),
   playlist: (id: string) => request<PlaylistDetail>(`/api/v1/playlists/${id}`),
-  createPlaylist: (name: string) =>
-    post<PlaylistDetail>("/api/v1/playlists", { name }),
-  updatePlaylist: (id: string, body: { name?: string; is_public?: boolean }) =>
-    patch<PlaylistDetail>(`/api/v1/playlists/${id}`, body),
+  createPlaylist: (name: string, description?: string) =>
+    post<PlaylistDetail>("/api/v1/playlists", { name, description }),
+  updatePlaylist: (
+    id: string,
+    body: { name?: string; description?: string; is_public?: boolean },
+  ) => patch<PlaylistDetail>(`/api/v1/playlists/${id}`, body),
+  playlistM3uUrl: (id: string) => `/api/v1/playlists/${id}/m3u`,
   deletePlaylist: (id: string) => remove(`/api/v1/playlists/${id}`),
   addToPlaylist: (id: string, trackId: string) =>
     post<PlaylistDetail>(`/api/v1/playlists/${id}/tracks`, { track_id: trackId }),

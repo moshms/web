@@ -69,6 +69,7 @@ export function Player() {
   const [quality, setQuality] = useState(() => localStorage.getItem("mc-quality") ?? "original");
   const [subsonic, setSubsonic] = useState<SubsonicCredentials | null>(null);
   const previousTrackId = useRef<string | null>(null);
+  const scrobbledRef = useRef(false);
 
   const canEditTrack = Boolean(
     features?.tag_editor &&
@@ -137,6 +138,21 @@ export function Player() {
     };
     audio.addEventListener("loadedmetadata", onLoaded);
   }, [track?.id, quality, subsonic, setPlaying]);
+
+  useEffect(() => {
+    scrobbledRef.current = false;
+  }, [track?.id]);
+
+  useEffect(() => {
+    if (!track || scrobbledRef.current || duration <= 0) {
+      return;
+    }
+    const threshold = Math.min(duration * 0.5, 240);
+    if (currentTime >= threshold) {
+      scrobbledRef.current = true;
+      void api.scrobble(track.id).catch(() => undefined);
+    }
+  }, [track, currentTime, duration]);
 
   useEffect(() => {
     const audio = audioRef.current;

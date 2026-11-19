@@ -7,6 +7,7 @@ import { Layout } from "@/components/Layout";
 import { AlbumPage } from "@/pages/AlbumPage";
 import { ArtistPage } from "@/pages/ArtistPage";
 import { FavoritesPage } from "@/pages/Favorites";
+import { HistoryPage } from "@/pages/HistoryPage";
 import { HomePage } from "@/pages/HomePage";
 import { LibraryPage } from "@/pages/Library";
 import { Login } from "@/pages/Login";
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="playlists/:playlistId" element={<PlaylistPage />} />
         <Route path="favorites" element={<FavoritesPage />} />
+        <Route path="history" element={<HistoryPage />} />
         <Route path="upload" element={<UploadRoute />} />
         <Route path="admin" element={<AdminRoute />} />
         <Route path="admin/tags" element={<AdminTagsRoute />} />
