@@ -51,6 +51,13 @@ export type AuditRecord = {
   created_at: string;
 };
 
+export type ArtistDetail = {
+  id: string;
+  name: string;
+  artwork_id: string | null;
+  albums: Album[];
+};
+
 export type Genre = {
   id: string;
   name: string;
@@ -126,6 +133,11 @@ export type UploadRecord = {
   status: string;
   error: string | null;
   updated_at: string;
+};
+
+export type LyricsResponse = {
+  source: "embedded" | "lrclib" | "none";
+  lyrics: string | null;
 };
 
 export type HistoryEntry = Track & {
@@ -399,6 +411,15 @@ export const api = {
     if (params.libraryId) query.set("library_id", params.libraryId);
     return requestPage<Artist[]>(`/api/v1/artists?${query.toString()}`);
   },
+  artist: (artistId: string) =>
+    request<ArtistDetail>(`/api/v1/artists/${artistId}`),
+  artistArtworkUrl: (artistId: string) => `/api/v1/artists/${artistId}/artwork`,
+  setArtistArtwork: (artistId: string, body: { artwork_base64: string; artwork_mime: string }) =>
+    request<void>(`/api/v1/artists/${artistId}/artwork`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
   artistTracks: (artistId: string) =>
     request<Track[]>(`/api/v1/artists/${artistId}/tracks`),
   albums: (artistId?: string) =>
@@ -453,6 +474,8 @@ export const api = {
   album: (id: string) => request<AlbumDetail>(`/api/v1/albums/${id}`),
   albumZipUrl: (id: string) => `/api/v1/albums/${id}/download`,
   history: () => request<HistoryEntry[]>("/api/v1/history"),
+  trackLyrics: (trackId: string) =>
+    request<LyricsResponse>(`/api/v1/tracks/${trackId}/lyrics`),
   scrobble: (trackId: string) =>
     post<void>(`/api/v1/tracks/${trackId}/scrobble`),
   search: (query: string) =>

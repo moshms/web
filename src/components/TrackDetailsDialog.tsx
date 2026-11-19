@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { api, ApiError, type Track } from "@/api";
+import { api, ApiError, type LyricsResponse, type Track } from "@/api";
 import { Dialog } from "@/components/ui/dialog";
 
 type TrackDetails = Track & {
@@ -33,6 +33,7 @@ export function TrackDetailsDialog({
   onClose: () => void;
 }) {
   const [track, setTrack] = useState<TrackDetails | null>(null);
+  const [lyrics, setLyrics] = useState<LyricsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export function TrackDetailsDialog({
       return;
     }
     setTrack(null);
+    setLyrics(null);
     setError(null);
     api
       .track(trackId)
@@ -47,6 +49,10 @@ export function TrackDetailsDialog({
       .catch((caught) =>
         setError(caught instanceof ApiError ? caught.message : "Не удалось загрузить сведения"),
       );
+    api
+      .trackLyrics(trackId)
+      .then(setLyrics)
+      .catch(() => setLyrics(null));
   }, [open, trackId]);
 
   const rows = track
@@ -82,13 +88,18 @@ export function TrackDetailsDialog({
           ))}
         </dl>
       )}
-      {track?.lyrics && (
+      {(lyrics?.lyrics || track?.lyrics) && (
         <div className="mt-4 border-t border-border pt-3">
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Текст
+            Текст{lyrics?.source === "lrclib" ? " · LRCLIB" : ""}
           </p>
-          <p className="whitespace-pre-line text-sm">{track.lyrics}</p>
+          <p className="whitespace-pre-line text-sm">{lyrics?.lyrics ?? track?.lyrics}</p>
         </div>
+      )}
+      {!lyrics?.lyrics && !track?.lyrics && (
+        <p className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
+          Текст не найден.
+        </p>
       )}
     </Dialog>
   );

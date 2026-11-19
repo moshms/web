@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Music2, Sparkles } from "lucide-react";
 
 import { useSearchParams } from "react-router-dom";
@@ -15,35 +16,28 @@ const emptyResults: SearchResults = { artists: [], albums: [], tracks: [] };
 export function SearchPage() {
   const [params] = useSearchParams();
   const query = params.get("q") ?? "";
-  const [results, setResults] = useState<SearchResults>(emptyResults);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const playTrack = usePlayer((state) => state.playTrack);
 
   useEffect(() => {
-    const value = query.trim();
-    if (!value) {
-      setResults(emptyResults);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    const timer = window.setTimeout(() => {
-      api
-        .search(value)
-        .then(setResults)
-        .catch((caught) =>
-          setError(caught instanceof ApiError ? caught.message : "Поиск не удался"),
-        )
-        .finally(() => setLoading(false));
-    }, 280);
-
+    const timer = window.setTimeout(() => setDebouncedQuery(query), 280);
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  const searchQuery = useQuery({
+    queryKey: ["search", debouncedQuery.trim()],
+    queryFn: () => api.search(debouncedQuery.trim()),
+    enabled: debouncedQuery.trim().length > 0,
+    placeholderData: keepPreviousData,
+  });
+  const results = searchQuery.data ?? emptyResults;
+  const loading = searchQuery.isFetching;
+  const error =
+    actionError ??
+    (searchQuery.error instanceof ApiError ? searchQuery.error.message : null);
 
   const hasResults =
     results.artists.length > 0 || results.albums.length > 0 || results.tracks.length > 0;
@@ -56,7 +50,7 @@ export function SearchPage() {
         playTrack(detail.tracks[0], detail.tracks);
       }
     } catch {
-      setError("Не удалось запустить альбом");
+      setActionError("Не удалось запустить альбом");
     } finally {
       setBusyId(null);
     }
@@ -72,18 +66,16 @@ export function SearchPage() {
         playTrack(tracks[0], tracks);
       }
     } catch {
-      setError("Не удалось запустить исполнителя");
+      setActionError("Не удалось запустить исполнителя");
     } finally {
       setBusyId(null);
     }
   };
 
   const refresh = () => {
-    const value = query.trim();
-    if (!value) {
-      return;
+    if (debouncedQuery.trim()) {
+      void queryClient.invalidateQueries({ queryKey: ["search", debouncedQuery.trim()] });
     }
-    api.search(value).then(setResults).catch(() => undefined);
   };
 
   return (

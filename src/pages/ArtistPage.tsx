@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Heart, Play, Shuffle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Heart, Play, Shuffle, Upload } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import { api, ApiError, type Album, type Artist, type Track } from "@/api";
@@ -9,7 +9,9 @@ import { AlbumCard } from "@/components/MediaCard";
 import { TrackList } from "@/components/TrackList";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/auth";
 import { usePlayer } from "@/player";
+import { can, canAnyLibrary, P } from "@/permissions";
 import { useToast } from "@/toast";
 import { cn } from "@/lib/utils";
 
@@ -23,19 +25,28 @@ export function ArtistPage() {
   const [error, setError] = useState<string | null>(null);
   const playTrack = usePlayer((state) => state.playTrack);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const artworkInput = useRef<HTMLInputElement>(null);
+  const canEditArtwork =
+    can(user, P.MANAGE_LIBRARIES) || canAnyLibrary(user, P.LIBRARY_EDIT_TAGS);
 
   const load = useCallback(async () => {
     if (!artistId) {
       return;
     }
     try {
-      const [artists, loadedAlbums, favorites, loadedTracks] = await Promise.all([
-        api.artists(),
+      const [detail, loadedAlbums, favorites, loadedTracks] = await Promise.all([
+        api.artist(artistId),
         api.albums(artistId),
         api.favorites(),
         api.artistTracks(artistId),
       ]);
-      setArtist(artists.find((item) => item.id === artistId) ?? null);
+      setArtist({
+        id: detail.id,
+        name: detail.name,
+        album_count: detail.albums.length,
+        track_count: loadedTracks.length,
+      });
       setAlbums(loadedAlbums);
       setStarred(favorites.artists.some((item) => item.id === artistId));
       setTracks(loadedTracks);
@@ -101,7 +112,6 @@ export function ArtistPage() {
     );
   }
 
-  const coverAlbum = albums.find((album) => album.artwork_id);
   const popular = tracks.slice(0, 5);
 
   return (
@@ -112,13 +122,12 @@ export function ArtistPage() {
         backTo="/library?view=artists"
         backLabel="Исполнители"
         artwork={
-          coverAlbum ? (
-            <Artwork albumId={coverAlbum.id} title={artist.name} className="h-full w-full" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted text-5xl font-semibold text-muted-foreground">
-              {artist.name.slice(0, 1).toUpperCase()}
-            </div>
-          )
+          <Artwork
+            url={api.artistArtworkUrl(artist.id)}
+            title={artist.name}
+            size={600}
+            className="h-full w-full"
+          />
         }
         meta={
           <span>
@@ -156,6 +165,44 @@ export function ArtistPage() {
             >
               <Heart className={cn("h-4 w-4", starred && "fill-foreground")} />
             </Button>
+            {canEditArtwork && (
+              <>
+                <input
+                  ref={artworkInput}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const result = String(reader.result);
+                      const base64 = result.split(",")[1] ?? "";
+                      void api
+                        .setArtistArtwork(artist.id, {
+                          artwork_base64: base64,
+                          artwork_mime: file.type || "image/jpeg",
+                        })
+                        .then(() => load())
+                        .catch(() => toast("Не удалось загрузить обложку", "error"));
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => artworkInput.current?.click()}
+                  aria-label="Загрузить обложку исполнителя"
+                  title="Загрузить обложку"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </>
         }
       />
