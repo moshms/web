@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import * as tus from "tus-js-client";
 
-import { api, ApiError, type Library } from "@/api";
+import { api, ApiError, type Library, type UploadRecord } from "@/api";
 import { useAuth } from "@/auth";
 import { canAnyLibrary, canLibrary, P } from "@/permissions";
 import { Button } from "@/components/ui/button";
@@ -29,12 +29,22 @@ export function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
+  const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const { user } = useAuth();
   const uploadable = libraries.filter((library) =>
     canLibrary(user, library.id, P.LIBRARY_UPLOAD),
   );
 
+  const loadUploads = () =>
+    api
+      .uploads()
+      .then(setUploads)
+      .catch(() => setUploads([]));
+
   useEffect(() => {
+    void loadUploads();
+    folderRef.current?.setAttribute("webkitdirectory", "");
     api
       .libraries()
       .then(setLibraries)
@@ -99,6 +109,7 @@ export function UploadPage() {
         },
         onSuccess: () => {
           updateItem(id, { status: "done", progress: 100 });
+          window.setTimeout(() => void loadUploads(), 1000);
         },
       });
 
@@ -217,6 +228,47 @@ export function UploadPage() {
           </Button>
         </div>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          История загрузок
+        </h2>
+        {uploads.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Загрузок пока нет.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg bg-card">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-border text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Файл</th>
+                  <th className="px-3 py-2 font-medium">Размер</th>
+                  <th className="px-3 py-2 font-medium">Статус</th>
+                  <th className="px-3 py-2 font-medium">Обновлён</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {uploads.map((upload) => (
+                  <tr key={upload.id}>
+                    <td className="max-w-80 truncate px-3 py-1.5">{upload.filename}</td>
+                    <td className="px-3 py-1.5 tabular-nums">
+                      {Math.round(upload.size / 1024)} KB
+                    </td>
+                    <td className="px-3 py-1.5">
+                      {upload.status}
+                      {upload.status !== "complete" && upload.size > 0
+                        ? ` · ${Math.round((upload.offset / upload.size) * 100)}%`
+                        : ""}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      {new Date(upload.updated_at).toLocaleString("ru-RU")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {items.length > 0 && (
         <section className="space-y-2">

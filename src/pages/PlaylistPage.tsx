@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, ListMusic, Lock, Pencil, Play, Share2, Trash2 } from "lucide-react";
+import { Download, ListMusic, ListPlus, Lock, Pencil, Play, Share2, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, ApiError, type PlaylistDetail } from "@/api";
@@ -24,7 +24,10 @@ export function PlaylistPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editPublic, setEditPublic] = useState(false);
   const [editBusy, setEditBusy] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const playTrack = usePlayer((state) => state.playTrack);
+  const addToQueue = usePlayer((state) => state.addToQueue);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -81,6 +84,56 @@ export function PlaylistPage() {
     } finally {
       setEditBusy(false);
     }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const reorder = async (from: number, to: number) => {
+    if (!playlistId || !detail) return;
+    const ids = detail.tracks.map((track) => track.id);
+    const [moved] = ids.splice(from, 1);
+    if (!moved) return;
+    ids.splice(to, 0, moved);
+    try {
+      await api.reorderPlaylist(playlistId, ids);
+      load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось изменить порядок");
+    }
+  };
+
+  const removeSelected = async () => {
+    if (!playlistId || !detail) return;
+    const positions = detail.tracks
+      .map((track, index) => (selected.has(track.id) ? index : -1))
+      .filter((index) => index >= 0)
+      .sort((left, right) => right - left);
+    try {
+      for (const position of positions) {
+        await api.removeFromPlaylist(playlistId, position);
+      }
+      setSelected(new Set());
+      setSelecting(false);
+      load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось удалить треки");
+    }
+  };
+
+  const queueSelected = () => {
+    if (!detail) return;
+    for (const track of detail.tracks) {
+      if (selected.has(track.id)) addToQueue(track);
+    }
+    setSelected(new Set());
+    setSelecting(false);
   };
 
   const removePlaylist = async () => {
@@ -233,11 +286,57 @@ export function PlaylistPage() {
         </div>
       )}
 
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-2">
+          {!selecting ? (
+            <Button variant="outline" size="sm" onClick={() => setSelecting(true)}>
+              Выбрать треки
+            </Button>
+          ) : (
+            <>
+              <span className="text-sm text-muted-foreground">Выбрано: {selected.size}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={queueSelected}
+                disabled={selected.size === 0}
+              >
+                <ListPlus className="mr-2 h-4 w-4" />
+                В очередь
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void removeSelected()}
+                disabled={selected.size === 0}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelected(new Set());
+                  setSelecting(false);
+                }}
+              >
+                Отмена
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       <TrackList
         tracks={detail.tracks}
         onPlay={(track, queue) => playTrack(track, queue)}
         onRemove={canEdit ? (position) => void removeTrack(position) : undefined}
         onTracksChanged={load}
+        onReorder={canEdit ? (from, to) => void reorder(from, to) : undefined}
+        selectable={selecting}
+        selected={selected}
+        onToggleSelect={toggleSelect}
       />
 
       <PlaylistShareDialog
