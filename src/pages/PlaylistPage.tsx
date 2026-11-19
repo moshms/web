@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ListMusic, Lock, Play, Share2, Trash2 } from "lucide-react";
+import { Download, ListMusic, Lock, Pencil, Play, Share2, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, ApiError, type PlaylistDetail } from "@/api";
@@ -19,6 +19,11 @@ export function PlaylistPage() {
   const [detail, setDetail] = useState<PlaylistDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPublic, setEditPublic] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
   const playTrack = usePlayer((state) => state.playTrack);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,6 +54,32 @@ export function PlaylistPage() {
       load();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Не удалось убрать трек");
+    }
+  };
+
+  const openEdit = () => {
+    if (!detail) return;
+    setEditName(detail.playlist.name);
+    setEditDescription(detail.playlist.description ?? "");
+    setEditPublic(detail.playlist.is_public);
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!playlistId || !editName.trim()) return;
+    setEditBusy(true);
+    try {
+      await api.updatePlaylist(playlistId, {
+        name: editName.trim(),
+        description: editDescription.trim(),
+        is_public: editPublic,
+      });
+      setEditOpen(false);
+      load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Не удалось сохранить плейлист");
+    } finally {
+      setEditBusy(false);
     }
   };
 
@@ -115,6 +146,18 @@ export function PlaylistPage() {
               <Play className="mr-2 h-4 w-4" />
               Слушать
             </Button>
+            <Button asChild variant="outline" size="lg">
+              <a href={api.playlistM3uUrl(detail.playlist.id)} download>
+                <Download className="mr-2 h-4 w-4" />
+                M3U
+              </a>
+            </Button>
+            {canManage && (
+              <Button variant="outline" size="lg" onClick={openEdit}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Редактировать
+              </Button>
+            )}
             {canManage && (
               <Button variant="outline" size="lg" onClick={() => setShareOpen(true)}>
                 <Share2 className="mr-2 h-4 w-4" />
@@ -135,6 +178,53 @@ export function PlaylistPage() {
           </>
         }
       />
+
+      {detail.playlist.description && (
+        <p className="max-w-3xl whitespace-pre-line text-sm text-muted-foreground">
+          {detail.playlist.description}
+        </p>
+      )}
+
+      {editOpen && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void saveEdit();
+          }}
+          className="mc-surface space-y-3 p-4"
+        >
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <input
+              value={editName}
+              onChange={(event) => setEditName(event.target.value)}
+              placeholder="Название"
+              className="mc-field"
+            />
+            <input
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              placeholder="Описание"
+              className="mc-field"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={editPublic}
+              onChange={(event) => setEditPublic(event.target.checked)}
+            />
+            Публичный плейлист
+          </label>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={editBusy || !editName.trim()}>
+              Сохранить
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+              Отмена
+            </Button>
+          </div>
+        </form>
+      )}
 
       {detail.hidden_count > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-4 py-3 text-xs text-muted-foreground">

@@ -2,6 +2,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  History,
   Home,
   Library,
   LogOut,
@@ -31,6 +32,7 @@ const primaryNav = [
   { to: "/search", label: "Поиск", icon: Search },
   { to: "/library", label: "Библиотека", icon: Library },
   { to: "/favorites", label: "Избранное", icon: Heart },
+  { to: "/history", label: "История", icon: History },
 ];
 
 const mobileNav = [
