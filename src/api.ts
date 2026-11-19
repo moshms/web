@@ -94,6 +94,40 @@ export type Track = {
   uploaded_by: string | null;
 };
 
+export type AdminStats = {
+  users: number;
+  libraries: number;
+  tracks: number;
+  albums: number;
+  artists: number;
+  media_bytes: number;
+  jobs_pending: number;
+  jobs_running: number;
+  jobs_failed: number;
+};
+
+export type ScanRunRecord = {
+  id: string;
+  library_id: string;
+  library_name: string;
+  mode: string;
+  status: string;
+  counters: Record<string, number>;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type UploadRecord = {
+  id: string;
+  filename: string;
+  size: number;
+  offset: number;
+  status: string;
+  error: string | null;
+  updated_at: string;
+};
+
 export type HistoryEntry = Track & {
   played_at: string;
 };
@@ -341,6 +375,7 @@ export const api = {
     post<User>("/api/v1/auth/login", { username, password }),
   logout: () => post<void>("/api/v1/auth/logout"),
   me: () => request<User>("/api/v1/auth/me"),
+  uploads: () => request<UploadRecord[]>("/api/v1/uploads"),
   subsonicCredentials: () => request<SubsonicCredentials>("/api/v1/auth/subsonic"),
   rotateSubsonic: () => post<SubsonicCredentials>("/api/v1/auth/subsonic/rotate"),
   changePassword: (body: { current_password: string; new_password: string }) =>
@@ -433,6 +468,12 @@ export const api = {
   ) => patch<PlaylistDetail>(`/api/v1/playlists/${id}`, body),
   playlistM3uUrl: (id: string) => `/api/v1/playlists/${id}/m3u`,
   deletePlaylist: (id: string) => remove(`/api/v1/playlists/${id}`),
+  reorderPlaylist: (id: string, trackIds: string[]) =>
+    request<void>(`/api/v1/playlists/${id}/order`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ track_ids: trackIds }),
+    }),
   addToPlaylist: (id: string, trackId: string) =>
     post<PlaylistDetail>(`/api/v1/playlists/${id}/tracks`, { track_id: trackId }),
   removeFromPlaylist: (id: string, position: number) =>
@@ -500,6 +541,7 @@ export const api = {
   deletePlaylistPermission: (id: string, targetType: "role" | "user", targetId: string) =>
     remove(`/api/v1/playlists/${id}/permissions/${targetType}/${targetId}`),
   admin: {
+    stats: () => request<AdminStats>("/api/v1/admin/stats"),
     scan: () => post<LibraryScanResult[]>("/api/v1/admin/scan"),
     scanAsync: () => post<{ job_id: string }>("/api/v1/admin/scan/async"),
     storages: () => request<Storage[]>("/api/v1/admin/storages"),

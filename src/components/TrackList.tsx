@@ -43,6 +43,10 @@ type TrackListProps = {
   onAddToPlaylist?: (playlistId: string, trackId: string) => void;
   onRemove?: (position: number) => void;
   onTracksChanged?: () => void;
+  onReorder?: (from: number, to: number) => void;
+  selectable?: boolean;
+  selected?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 };
 
 function formatDuration(milliseconds: number | null) {
@@ -85,6 +89,10 @@ export function TrackList({
   onAddToPlaylist,
   onRemove,
   onTracksChanged,
+  onReorder,
+  selectable,
+  selected,
+  onToggleSelect,
 }: TrackListProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -96,6 +104,7 @@ export function TrackList({
   const [fetchedPlaylists, setFetchedPlaylists] = useState<Playlist[]>([]);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [editingAlbumId, setEditingAlbumId] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     api.features().then(setFeatures).catch(() => setFeatures(null));
@@ -160,11 +169,36 @@ export function TrackList({
                 return (
                   <div
                     key={`${track.id}-${index}`}
+                    draggable={Boolean(onReorder)}
+                    onDragStart={() => setDragIndex(index)}
+                    onDragOver={(event) => {
+                      if (onReorder) event.preventDefault();
+                    }}
+                    onDrop={() => {
+                      if (onReorder && dragIndex !== null && dragIndex !== index) {
+                        onReorder(dragIndex, index);
+                      }
+                      setDragIndex(null);
+                    }}
+                    onDragEnd={() => setDragIndex(null)}
                     className={cn(
-                      "group grid h-12 grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-2 px-2 transition-colors hover:bg-muted/50 sm:gap-3 sm:px-3",
+                      "group grid h-12 items-center gap-2 px-2 transition-colors hover:bg-muted/50 sm:gap-3 sm:px-3",
+                      selectable
+                        ? "grid-cols-[1.25rem_2rem_minmax(0,1fr)_auto_auto_auto_auto]"
+                        : "grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto_auto]",
                       active && "bg-accent",
+                      onReorder && "cursor-grab",
+                      dragIndex === index && "opacity-50",
                     )}
                   >
+                    {selectable && (
+                      <input
+                        type="checkbox"
+                        checked={selected?.has(track.id) ?? false}
+                        onChange={() => onToggleSelect?.(track.id)}
+                        aria-label={`Выбрать ${track.title}`}
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={() => onPlay(track, tracks)}

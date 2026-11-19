@@ -8,6 +8,7 @@ type TrackDetails = Track & {
   year: number;
   bitrate: number | null;
   sample_rate: number | null;
+  lyrics: string | null;
 };
 
 function formatSize(bytes: number) {
@@ -80,6 +81,14 @@ export function TrackDetailsDialog({
             </div>
           ))}
         </dl>
+      )}
+      {track?.lyrics && (
+        <div className="mt-4 border-t border-border pt-3">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Текст
+          </p>
+          <p className="whitespace-pre-line text-sm">{track.lyrics}</p>
+        </div>
       )}
     </Dialog>
   );

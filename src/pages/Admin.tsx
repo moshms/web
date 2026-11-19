@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import {
   api,
   ApiError,
+  type AdminStats,
   type AdminUser,
   type AuditRecord,
   type Features,
@@ -13,6 +14,7 @@ import {
   type Library,
   type LibraryScanResult,
   type Role,
+  type ScanRunRecord,
   type Storage,
 } from "@/api";
 import { useAuth } from "@/auth";
@@ -31,6 +33,13 @@ const jobKindLabels: Record<string, string> = {
   import: "Импорт файла",
   scan: "Скан",
 };
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
 
 const jobStatusLabels: Record<string, string> = {
   pending: "ожидает",
@@ -65,6 +74,8 @@ export function AdminPage() {
   const [jobs, setJobs] = useState<JobRecord[]>([]);
   const [audit, setAudit] = useState<AuditRecord[]>([]);
   const [scanResults, setScanResults] = useState<LibraryScanResult[] | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [scanRuns, setScanRuns] = useState<ScanRunRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -99,6 +110,7 @@ export function AdminPage() {
     ];
     if (canScans) {
       tasks.push(api.admin.jobs().then(setJobs));
+      tasks.push(api.admin.stats().then(setStats));
     }
     if (canStorages) {
       tasks.push(api.admin.storages().then(setStorages));
@@ -118,6 +130,21 @@ export function AdminPage() {
   useEffect(() => {
     void load().catch(showError);
   }, []);
+
+  useEffect(() => {
+    if (!canScans) {
+      return;
+    }
+    const source = new EventSource("/api/v1/admin/scan/events");
+    source.onmessage = (event) => {
+      try {
+        setScanRuns(JSON.parse(event.data) as ScanRunRecord[]);
+      } catch {
+        // ignore malformed events
+      }
+    };
+    return () => source.close();
+  }, [canScans]);
 
   const scan = async () => {
     setBusy(true);
@@ -323,10 +350,14 @@ export function AdminPage() {
       <Section show={tab === "overview"}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ["Библиотеки", libraries.length],
-            ["Хранилища", storages.length],
-            ["Пользователи", users.length],
-            ["Задания", jobs.length],
+            ["Треки", stats?.tracks ?? 0],
+            ["Альбомы", stats?.albums ?? 0],
+            ["Исполнители", stats?.artists ?? 0],
+            ["Пользователи", stats?.users ?? users.length],
+            ["Библиотеки", stats?.libraries ?? libraries.length],
+            ["Размер медиа", formatBytes(stats?.media_bytes ?? 0)],
+            ["Задания", (stats?.jobs_pending ?? 0) + (stats?.jobs_running ?? 0)],
+            ["Ошибки заданий", stats?.jobs_failed ?? 0],
           ].map(([label, value]) => (
             <div key={label} className="rounded-md border border-border p-4">
               <p className="text-xs text-muted-foreground">{label}</p>
@@ -362,6 +393,39 @@ export function AdminPage() {
             Запустить скан
           </Button>
         </div>
+
+        {scanRuns.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-muted-foreground">
+                <tr>
+                  <th className="py-1 pr-3">Библиотека</th>
+                  <th className="py-1 pr-3">Режим</th>
+                  <th className="py-1 pr-3">Статус</th>
+                  <th className="py-1 pr-3">Файлов</th>
+                  <th className="py-1 pr-3">Добавлено</th>
+                  <th className="py-1 pr-3">Ошибок</th>
+                  <th className="py-1 pr-3">Начало</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scanRuns.slice(0, 8).map((run) => (
+                  <tr key={run.id} className="border-t">
+                    <td className="py-1 pr-3">{run.library_name}</td>
+                    <td className="py-1 pr-3">{run.mode}</td>
+                    <td className="py-1 pr-3">{run.status}</td>
+                    <td className="py-1 pr-3">{run.counters.files_seen ?? 0}</td>
+                    <td className="py-1 pr-3">{run.counters.added ?? 0}</td>
+                    <td className="py-1 pr-3">{run.counters.errors ?? 0}</td>
+                    <td className="py-1 pr-3">
+                      {new Date(run.started_at).toLocaleString("ru-RU")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {scanResults && (
           <div className="overflow-x-auto">
