@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 type ArtworkProps = {
   albumId?: string | null;
+  url?: string;
   title: string;
   size?: number;
   className?: string;
@@ -14,6 +15,7 @@ type ArtworkProps = {
 
 export function Artwork({
   albumId,
+  url,
   title,
   size = 300,
   className,
@@ -32,9 +34,9 @@ export function Artwork({
         className,
       )}
     >
-      {albumId && !failed ? (
+      {(url || albumId) && !failed ? (
         <img
-          src={api.artworkUrl(albumId, size)}
+          src={url ?? api.artworkUrl(albumId!, size)}
           alt={title}
           loading="lazy"
           onError={() => setFailed(true)}
